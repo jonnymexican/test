@@ -4,8 +4,13 @@ import jungQuotes from './jungQuotes';
 
 const STORAGE_KEY = 'get-inspired:custom-quotes';
 
-const CLASSICS = quotes.map((text) => ({ text, category: 'classics' }));
-const JUNG = jungQuotes.map((text) => ({ text, category: 'jung' }));
+const CLASSICS = quotes.map((text) => ({ id: null, text, category: 'classics' }));
+const JUNG = jungQuotes.map((text) => ({ id: null, text, category: 'jung' }));
+
+function makeId() {
+  if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+  return `q-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
 
 function loadCustomQuotes() {
   try {
@@ -13,9 +18,13 @@ function loadCustomQuotes() {
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (q) => q && typeof q.text === 'string' && q.text.trim() && typeof q.category === 'string'
-    );
+    return parsed
+      .filter((q) => q && typeof q.text === 'string' && q.text.trim())
+      .map((q) => ({
+        id: typeof q.id === 'string' && q.id ? q.id : makeId(),
+        text: q.text,
+        category: 'custom',
+      }));
   } catch {
     return [];
   }
@@ -35,12 +44,27 @@ export default function useQuotePool() {
   const addCustomQuote = (text) => {
     const trimmed = text.trim();
     if (!trimmed) return false;
-    setCustomQuotes((current) => [...current, { text: trimmed, category: 'custom' }]);
+    setCustomQuotes((current) => [...current, { id: makeId(), text: trimmed, category: 'custom' }]);
+    return true;
+  };
+
+  const updateCustomQuote = (id, text) => {
+    const trimmed = text.trim();
+    if (!id || !trimmed) return false;
+    setCustomQuotes((current) =>
+      current.map((q) => (q.id === id ? { ...q, text: trimmed } : q))
+    );
+    return true;
+  };
+
+  const deleteCustomQuote = (id) => {
+    if (!id) return false;
+    setCustomQuotes((current) => current.filter((q) => q.id !== id));
     return true;
   };
 
   const pool = useMemo(() => {
-    const customs = customQuotes.map((q) => ({ text: q.text, category: 'custom' }));
+    const customs = customQuotes.map((q) => ({ id: q.id, text: q.text, category: 'custom' }));
     return [...CLASSICS, ...JUNG, ...customs];
   }, [customQuotes]);
 
@@ -63,5 +87,5 @@ export default function useQuotePool() {
     return pool.filter((q) => q.category === categoryId);
   };
 
-  return { pool, categories, addCustomQuote, quotesFor };
+  return { pool, categories, addCustomQuote, updateCustomQuote, deleteCustomQuote, quotesFor };
 }

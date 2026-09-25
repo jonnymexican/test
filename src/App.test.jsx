@@ -55,7 +55,7 @@ describe('App', () => {
 
     expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Test quote from me — Me');
     expect(JSON.parse(window.localStorage.getItem('get-inspired:custom-quotes'))).toEqual([
-      { text: 'Test quote from me — Me', category: 'custom' },
+      { id: expect.any(String), text: 'Test quote from me — Me', category: 'custom' },
     ]);
 
     unmount();
@@ -72,6 +72,65 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /save quote/i }));
 
     expect(screen.getByRole('alert')).toHaveTextContent(/write a quote first/i);
+  });
+
+  it('edits a custom quote and persists the change', () => {
+    const { unmount } = render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /\+ add your own quote/i }));
+    fireEvent.change(screen.getByLabelText(/your quote/i), {
+      target: { value: 'Original wording — Me' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /save quote/i }));
+
+    fireEvent.click(screen.getByRole('button', { name: /edit this quote/i }));
+    fireEvent.change(screen.getByLabelText(/edit quote/i), {
+      target: { value: 'Edited wording — Me' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
+
+    expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Edited wording — Me');
+    expect(JSON.parse(window.localStorage.getItem('get-inspired:custom-quotes'))).toEqual([
+      { id: expect.any(String), text: 'Edited wording — Me', category: 'custom' },
+    ]);
+
+    unmount();
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'My quotes' }));
+    expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Edited wording — Me');
+  });
+
+  it('cancels editing without changing the quote', () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /\+ add your own quote/i }));
+    fireEvent.change(screen.getByLabelText(/your quote/i), {
+      target: { value: 'Keep me as I am — Me' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /save quote/i }));
+
+    fireEvent.click(screen.getByRole('button', { name: /edit this quote/i }));
+    fireEvent.change(screen.getByLabelText(/edit quote/i), {
+      target: { value: 'This should not stick — Me' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+
+    expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Keep me as I am — Me');
+  });
+
+  it('deletes a custom quote and empties the My quotes view', () => {
+    const { rerender } = render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /\+ add your own quote/i }));
+    fireEvent.change(screen.getByLabelText(/your quote/i), {
+      target: { value: 'Doomed quote — Me' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /save quote/i }));
+
+    fireEvent.click(screen.getByRole('button', { name: /delete this quote/i }));
+
+    expect(JSON.parse(window.localStorage.getItem('get-inspired:custom-quotes'))).toEqual([]);
+    expect(screen.getByText(/no quotes in this collection yet/i)).toBeInTheDocument();
   });
 
   it('saves a quote to favorites via the heart button', () => {

@@ -317,6 +317,72 @@
   box-shadow: 0 4px 16px rgba(248, 181, 0, 0.35);
 }
 
+/* Edit / delete actions for custom quotes */
+.quote-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.app .quote-edit,
+.app .quote-delete {
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: rgba(245, 242, 250, 0.6);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  padding: 0.25rem 0.85rem;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.app .quote-edit:hover {
+  color: #f8b500;
+  border-color: rgba(248, 181, 0, 0.5);
+}
+
+.app .quote-delete:hover {
+  color: #ff5d73;
+  border-color: rgba(255, 93, 115, 0.6);
+  background: rgba(255, 93, 115, 0.1);
+}
+
+.quote-edit-form {
+  width: 100%;
+  max-width: 30rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 0.75rem auto;
+}
+
+.quote-edit-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 0.6rem;
+}
+
+.app .quote-cancel {
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: rgba(245, 242, 250, 0.7);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  padding: 0.5rem 1.5rem;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.app .quote-cancel:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
 /* Favorites list */
 .favorites {
   width: 100%;

@@ -3,11 +3,12 @@ import FancyText from './FancyText';
 import Favorites from './Favorites';
 import ShareMenu from './ShareMenu';
 import AddQuoteForm from './AddQuoteForm';
+import QuoteActions from './QuoteActions';
 import useFavorites from './useFavorites';
 import useQuotePool from './useQuotePool';
 
 export default function InspirationGenerator({children}) {
-  const { pool, categories, addCustomQuote } = useQuotePool();
+  const { pool, categories, addCustomQuote, updateCustomQuote, deleteCustomQuote } = useQuotePool();
   const [category, setCategory] = React.useState('all');
   const [index, setIndex] = React.useState(0);
 
@@ -16,7 +17,9 @@ export default function InspirationGenerator({children}) {
     return pool.filter((q) => q.category === category);
   }, [pool, category]);
 
-  const quote = activeQuotes.length > 0 ? activeQuotes[index % activeQuotes.length].text : null;
+  const active = activeQuotes.length > 0 ? activeQuotes[index % activeQuotes.length] : null;
+  const quote = active?.text ?? null;
+  const isCustom = active?.category === 'custom';
 
   const next = () =>
     setIndex((current) => {
@@ -48,6 +51,16 @@ export default function InspirationGenerator({children}) {
     <>
       <p className="lead-in">Your inspirational quote is:</p>
       <FancyText text={quote} />
+      {isCustom && (
+        <QuoteActions
+          quote={active}
+          onSave={(text) => updateCustomQuote(active.id, text)}
+          onDelete={() => {
+            deleteCustomQuote(active.id);
+            setIndex(0);
+          }}
+        />
+      )}
       <div className="chips" role="group" aria-label="Quote collections">
         {categories.map((c) => (
           <button
