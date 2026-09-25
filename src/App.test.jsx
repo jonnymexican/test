@@ -32,7 +32,7 @@ describe('App', () => {
 
   it('renders the copyright', () => {
     render(<App />);
-    expect(screen.getByText(/©️ 2004/i)).toBeInTheDocument();
+    expect(screen.getByText(/©️ 2016/i)).toBeInTheDocument();
   });
 
   it('filters quotes by collection with the chips', () => {
