@@ -35,6 +35,45 @@ describe('App', () => {
     expect(screen.getByText(/©️ 2004/i)).toBeInTheDocument();
   });
 
+  it('filters quotes by collection with the chips', () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Carl Jung' }));
+
+    expect(screen.getByRole('heading', { level: 3 }).textContent).toMatch(/— Carl Jung$/);
+    expect(screen.getByRole('button', { name: 'Carl Jung' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('adds a custom quote, shows it, and persists it across remount', () => {
+    const { unmount } = render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /\+ add your own quote/i }));
+    fireEvent.change(screen.getByLabelText(/your quote/i), {
+      target: { value: 'Test quote from me — Me' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /save quote/i }));
+
+    expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Test quote from me — Me');
+    expect(JSON.parse(window.localStorage.getItem('get-inspired:custom-quotes'))).toEqual([
+      { text: 'Test quote from me — Me', category: 'custom' },
+    ]);
+
+    unmount();
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'My quotes' }));
+
+    expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Test quote from me — Me');
+  });
+
+  it('rejects an empty custom quote with a message', () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /\+ add your own quote/i }));
+    fireEvent.click(screen.getByRole('button', { name: /save quote/i }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/write a quote first/i);
+  });
+
   it('saves a quote to favorites via the heart button', () => {
     render(<App />);
     const quote = quoteText();
@@ -100,35 +139,62 @@ describe('App', () => {
     expect(screen.queryByRole('button', { name: /clear all favorite quotes/i })).not.toBeInTheDocument();
   });
 
-  it('opens an email draft containing the quote and shows a confirmation', () => {
+  it('opens an email draft from the share menu', () => {
     const location = window.location;
     delete window.location;
     window.location = { href: '' };
-    vi.useFakeTimers();
 
     try {
       render(<App />);
       const quote = quoteText();
-      const shareButton = () => screen.getByRole('button', { name: /share quote by email/i });
 
-      act(() => {
-        fireEvent.click(shareButton());
-      });
+      fireEvent.click(screen.getByRole('button', { name: /share quote/i }));
+      fireEvent.click(screen.getByRole('menuitem', { name: /email draft/i }));
 
       expect(window.location.href).toMatch(/^mailto:/);
       const url = new URL(window.location.href.replace(/^mailto:/, 'http://dummy'));
       expect(url.searchParams.get('subject')).toMatch(/inspirational quote/i);
       expect(decodeURIComponent(url.searchParams.get('body'))).toContain(quote);
-      expect(screen.getByRole('button', { name: /opening email draft/i })).toHaveTextContent('✓ Draft ready!');
-
-      act(() => {
-        vi.advanceTimersByTime(2000);
-      });
-
-      expect(shareButton()).toBeInTheDocument();
     } finally {
       window.location = location;
-      vi.useRealTimers();
+    }
+  });
+
+  it('copies the quote to the clipboard from the share menu', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    try {
+      render(<App />);
+      const quote = quoteText();
+
+      fireEvent.click(screen.getByRole('button', { name: /share quote/i }));
+      await act(async () => {
+        fireEvent.click(screen.getByRole('menuitem', { name: /copy to clipboard/i }));
+      });
+
+      expect(writeText).toHaveBeenCalledWith(quote);
+    } finally {
+      delete navigator.clipboard;
+    }
+  });
+
+  it('opens an X post intent from the share menu', () => {
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+
+    try {
+      render(<App />);
+
+      fireEvent.click(screen.getByRole('button', { name: /share quote/i }));
+      fireEvent.click(screen.getByRole('menuitem', { name: /post on x/i }));
+
+      expect(openSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/^https:\/\/twitter\.com\/intent\/tweet\?text=/),
+        '_blank',
+        expect.any(String)
+      );
+    } finally {
+      openSpy.mockRestore();
     }
   });
 

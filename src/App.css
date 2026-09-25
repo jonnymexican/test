@@ -164,6 +164,159 @@
   box-shadow: 0 4px 20px rgba(126, 232, 178, 0.35);
 }
 
+/* Quote collection filter chips */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 1.25rem 0 1.5rem;
+}
+
+.chip {
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(245, 242, 250, 0.7);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  padding: 0.35rem 1rem;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.chip:hover {
+  color: #f8b500;
+  border-color: rgba(248, 181, 0, 0.5);
+}
+
+.chip.active {
+  color: #1a1a2e;
+  background: linear-gradient(135deg, #f8b500, #ff7e5f);
+  border-color: transparent;
+}
+
+/* Share menu popover */
+.share-menu {
+  position: relative;
+}
+
+.share-popover {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  min-width: 13rem;
+  padding: 0.4rem;
+  background: #1d2a45;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.share-option {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: rgba(245, 242, 250, 0.9);
+  background: transparent;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.share-option:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Add-your-own-quote form */
+.add-quote {
+  margin-top: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.app .add-quote-toggle {
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: rgba(245, 242, 250, 0.6);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  transition: color 0.15s ease;
+}
+
+.app .add-quote-toggle:hover {
+  color: #f8b500;
+}
+
+.add-quote-form {
+  width: 100%;
+  max-width: 30rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+
+.add-quote-input {
+  font-family: inherit;
+  font-size: 1rem;
+  color: #f5f2fa;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  resize: vertical;
+  min-height: 3.5rem;
+  box-sizing: border-box;
+}
+
+.add-quote-input:focus {
+  outline: none;
+  border-color: rgba(248, 181, 0, 0.6);
+}
+
+.add-quote-input::placeholder {
+  color: rgba(245, 242, 250, 0.4);
+}
+
+.add-quote-error {
+  color: #ff5d73;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.app .add-quote-submit {
+  align-self: center;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1a1a2e;
+  background: linear-gradient(135deg, #f8b500, #ff7e5f);
+  border: none;
+  border-radius: 999px;
+  padding: 0.5rem 1.5rem;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.app .add-quote-submit:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(248, 181, 0, 0.35);
+}
+
 /* Favorites list */
 .favorites {
   width: 100%;

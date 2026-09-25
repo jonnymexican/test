@@ -1,39 +1,66 @@
 import * as React from 'react';
-import quotes from './quotes';
 import FancyText from './FancyText';
 import Favorites from './Favorites';
+import ShareMenu from './ShareMenu';
+import AddQuoteForm from './AddQuoteForm';
 import useFavorites from './useFavorites';
-import { buildMailtoUrl, openMailClient } from './mailto';
+import useQuotePool from './useQuotePool';
 
 export default function InspirationGenerator({children}) {
+  const { pool, categories, addCustomQuote } = useQuotePool();
+  const [category, setCategory] = React.useState('all');
   const [index, setIndex] = React.useState(0);
-  const quote = quotes[index];
-  const { favorites, isFavorite, toggle, clear } = useFavorites();
-  const [sent, setSent] = React.useState(false);
 
-  React.useEffect(() => {
-    if (!sent) return undefined;
-    const timer = setTimeout(() => setSent(false), 2000);
-    return () => clearTimeout(timer);
-  }, [sent]);
+  const activeQuotes = React.useMemo(() => {
+    if (category === 'all') return pool;
+    return pool.filter((q) => q.category === category);
+  }, [pool, category]);
 
-  const share = () => {
-    setSent(true);
-    openMailClient(buildMailtoUrl(quote));
-  };
+  const quote = activeQuotes.length > 0 ? activeQuotes[index % activeQuotes.length].text : null;
+
   const next = () =>
     setIndex((current) => {
       let nextIndex;
       do {
-        nextIndex = Math.floor(Math.random() * quotes.length);
-      } while (quotes.length > 1 && nextIndex === current);
+        nextIndex = Math.floor(Math.random() * activeQuotes.length);
+      } while (activeQuotes.length > 1 && nextIndex === current);
       return nextIndex;
     });
+
+  const selectCategory = (id) => {
+    setCategory(id);
+    setIndex(0);
+  };
+
+  const { favorites, isFavorite, toggle, clear } = useFavorites();
+
+  if (!quote) {
+    return (
+      <>
+        <p className="lead-in">No quotes in this collection yet</p>
+        <AddQuoteForm onAdd={(text) => { addCustomQuote(text); setCategory('custom'); setIndex(0); }} />
+        {children}
+      </>
+    );
+  }
 
   return (
     <>
       <p className="lead-in">Your inspirational quote is:</p>
       <FancyText text={quote} />
+      <div className="chips" role="group" aria-label="Quote collections">
+        {categories.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            className={`chip ${category === c.id ? 'active' : ''}`}
+            onClick={() => selectCategory(c.id)}
+            aria-pressed={category === c.id}
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
       <div className="actions">
         <button className="next-button" onClick={next}>Inspire me again</button>
         <button
@@ -46,17 +73,9 @@ export default function InspirationGenerator({children}) {
         >
           {isFavorite(quote) ? '♥' : '♡'}
         </button>
-        <button
-          type="button"
-          className={`share-button ${sent ? 'sent' : ''}`}
-          onClick={share}
-          aria-live="polite"
-          aria-label={sent ? 'Opening email draft' : 'Share quote by email'}
-          title="Share quote by email"
-        >
-          {sent ? '✓ Draft ready!' : 'Share'}
-        </button>
+        <ShareMenu quote={quote} />
       </div>
+      <AddQuoteForm onAdd={(text) => { addCustomQuote(text); selectCategory('custom'); }} />
       <Favorites favorites={favorites} onRemove={toggle} onClear={clear} />
       {children}
     </>
