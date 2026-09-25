@@ -1,0 +1,266 @@
+/* Layout: center everything on the page */
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2rem;
+  box-sizing: border-box;
+}
+
+/* Elegant display typography for titles and quotes */
+.lead-in {
+  font-size: 1rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  opacity: 0.75;
+  margin: 0 0 0.5rem;
+}
+
+.fancy {
+  font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  color: #f5f2fa;
+}
+
+.title {
+  font-size: clamp(2.5rem, 7vw, 4.5rem);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  margin: 0 0 1rem;
+  background: linear-gradient(90deg, #f8b500, #ff7e5f, #f8b500);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 6s linear infinite;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: 200% center;
+  }
+}
+
+.cursive {
+  font-style: italic;
+  font-weight: 500;
+  font-size: clamp(1.5rem, 4vw, 2.5rem);
+  line-height: 1.5;
+  max-width: 34ch;
+  margin: 1rem auto 2rem;
+  text-wrap: balance;
+}
+
+/* Small footer text */
+.small {
+  font-size: 0.85rem;
+  opacity: 0.7;
+  margin-top: 3rem;
+}
+
+/* The "Inspire me again" + heart buttons */
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.app .next-button {
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a1a2e;
+  background: linear-gradient(135deg, #f8b500, #ff7e5f);
+  border: none;
+  border-radius: 999px;
+  padding: 0.75rem 2rem;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(248, 181, 0, 0.35);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.app .next-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(248, 181, 0, 0.5);
+}
+
+.app .next-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 10px rgba(248, 181, 0, 0.4);
+}
+
+/* Heart (favorite) toggle */
+.app .heart-button {
+  width: 3.25rem;
+  height: 3.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: rgba(245, 242, 250, 0.6);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.15s ease, color 0.15s ease,
+    border-color 0.15s ease, background 0.15s ease;
+}
+
+.app .heart-button:hover {
+  color: #ff7e5f;
+  border-color: rgba(255, 126, 95, 0.6);
+  transform: scale(1.08);
+}
+
+.app .heart-button.active {
+  color: #ff5d73;
+  border-color: rgba(255, 93, 115, 0.7);
+  background: rgba(255, 93, 115, 0.12);
+  animation: heart-pop 0.3s ease;
+}
+
+@keyframes heart-pop {
+  0% {
+    transform: scale(0.8);
+  }
+  60% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Share (copy to clipboard) button */
+.app .share-button {
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: rgba(245, 242, 250, 0.85);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  padding: 0.75rem 1.5rem;
+  cursor: pointer;
+  transition: transform 0.15s ease, color 0.15s ease,
+    border-color 0.15s ease, background 0.15s ease;
+}
+
+.app .share-button:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+.app .share-button.sent {
+  color: #0f3460;
+  background: #7ee8b2;
+  border-color: #7ee8b2;
+  box-shadow: 0 4px 20px rgba(126, 232, 178, 0.35);
+}
+
+/* Favorites list */
+.favorites {
+  width: 100%;
+  max-width: 34rem;
+  margin-top: 4rem;
+  padding: 1.5rem 1.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  backdrop-filter: blur(6px);
+  box-sizing: border-box;
+}
+
+.favorites-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.favorites-heading {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #f8b500;
+  margin: 0;
+}
+
+.app .favorites-clear {
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: rgba(245, 242, 250, 0.55);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  padding: 0.3rem 0.85rem;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.app .favorites-clear:hover {
+  color: #ff5d73;
+  border-color: rgba(255, 93, 115, 0.6);
+  background: rgba(255, 93, 115, 0.1);
+}
+
+.favorites-empty {
+  font-size: 0.95rem;
+  opacity: 0.65;
+  margin: 0;
+}
+
+.favorites-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.favorites-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.6rem 0.9rem;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 0.6rem;
+}
+
+.favorites-quote {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-style: italic;
+  font-size: 0.95rem;
+  text-align: left;
+}
+
+.app .favorites-remove {
+  flex-shrink: 0;
+  width: 1.6rem;
+  height: 1.6rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  color: rgba(245, 242, 250, 0.5);
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.app .favorites-remove:hover {
+  color: #fff;
+  background: rgba(255, 93, 115, 0.35);
+}
