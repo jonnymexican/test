@@ -2,6 +2,8 @@ import * as React from 'react';
 import { buildMailtoUrl, openMailClient } from './mailto';
 import { copyToClipboard } from './clipboard';
 
+const SITE_URL = 'https://jonnymexican.github.io/test/';
+
 export default function ShareMenu({ quote }) {
   const [open, setOpen] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
@@ -62,6 +64,22 @@ export default function ShareMenu({ quote }) {
     close();
   };
 
+  const shareFacebook = () => {
+    window.open(
+      `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(SITE_URL)}&quote=${encodeURIComponent(`“${quote}”`)}`,
+      '_blank',
+      'noopener,noreferrer'
+    );
+    close();
+  };
+
+  const shareInstagram = async () => {
+    const ok = await copyToClipboard(quote);
+    setCopied(ok);
+    window.open('https://www.instagram.com/', '_blank', 'noopener,noreferrer');
+    close();
+  };
+
   const shareNative = async () => {
     if (navigator.share) {
       try {
@@ -99,6 +117,12 @@ export default function ShareMenu({ quote }) {
           </button>
           <button type="button" role="menuitem" className="share-option" onClick={shareWhatsApp}>
             <span aria-hidden="true">💬</span> WhatsApp
+          </button>
+          <button type="button" role="menuitem" className="share-option" onClick={shareFacebook}>
+            <span aria-hidden="true">📘</span> Facebook
+          </button>
+          <button type="button" role="menuitem" className="share-option" onClick={shareInstagram}>
+            <span aria-hidden="true">📸</span> Instagram (copies quote)
           </button>
           {typeof navigator.share === 'function' && (
             <button type="button" role="menuitem" className="share-option" onClick={shareNative}>

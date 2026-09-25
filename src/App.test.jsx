@@ -198,6 +198,48 @@ describe('App', () => {
     }
   });
 
+  it('opens the Facebook sharer with the site URL and quote', () => {
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+
+    try {
+      render(<App />);
+      const quote = quoteText();
+
+      fireEvent.click(screen.getByRole('button', { name: /share quote/i }));
+      fireEvent.click(screen.getByRole('menuitem', { name: /facebook/i }));
+
+      const [url] = openSpy.mock.calls[0];
+      expect(url).toMatch(/^https:\/\/www\.facebook\.com\/sharer\/sharer\.php\?/);
+      const params = new URL(url).searchParams;
+      expect(params.get('u')).toBe('https://jonnymexican.github.io/test/');
+      expect(decodeURIComponent(params.get('quote'))).toContain(quote);
+    } finally {
+      openSpy.mockRestore();
+    }
+  });
+
+  it('copies the quote and opens Instagram from the share menu', async () => {
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    try {
+      render(<App />);
+      const quote = quoteText();
+
+      fireEvent.click(screen.getByRole('button', { name: /share quote/i }));
+      await act(async () => {
+        fireEvent.click(screen.getByRole('menuitem', { name: /instagram/i }));
+      });
+
+      expect(writeText).toHaveBeenCalledWith(quote);
+      expect(openSpy).toHaveBeenCalledWith('https://www.instagram.com/', '_blank', expect.any(String));
+    } finally {
+      openSpy.mockRestore();
+      delete navigator.clipboard;
+    }
+  });
+
   afterEach(() => {
     vi.useRealTimers();
     delete navigator.clipboard;
