@@ -8,7 +8,7 @@ export default function App() {
     <div className="app">
       <FancyText title text="Get Inspired App" />
       <InspirationGenerator>
-        <Copyright year={2026} />
+        <Copyright year={new Date().getFullYear()} />
       </InspirationGenerator>
     </div>
   );

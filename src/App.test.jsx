@@ -30,9 +30,9 @@ describe('App', () => {
     expect(quoteText()).not.toBe(firstQuote);
   });
 
-  it('renders the copyright', () => {
+  it('renders the copyright with the current year', () => {
     render(<App />);
-    expect(screen.getByText(/©️ 2026/i)).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(`©️ ${new Date().getFullYear()}`))).toBeInTheDocument();
   });
 
   it('filters quotes by collection with the chips', () => {
