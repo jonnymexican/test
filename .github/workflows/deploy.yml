@@ -31,6 +31,15 @@ jobs:
 
       - run: npm run build
 
+      - name: Build vicinityGo
+        run: npm ci && npm run build
+        working-directory: vicinitygo
+
+      - name: Bundle vicinityGo into the Pages artifact
+        run: |
+          mkdir -p dist/vicinitygo
+          cp -r vicinitygo/dist/. dist/vicinitygo/
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
