@@ -1,18 +1,23 @@
+import BackupRestore from './BackupRestore';
+
 export default function Favorites({ favorites, onRemove, onClear }) {
   return (
     <section className="favorites" aria-label="Favorite quotes">
       <div className="favorites-header">
         <h2 className="favorites-heading">Favorites</h2>
-        {favorites.length > 0 && (
-          <button
-            type="button"
-            className="favorites-clear"
-            onClick={onClear}
-            aria-label="Clear all favorite quotes"
-          >
-            Clear all
-          </button>
-        )}
+        <div className="favorites-tools">
+          {favorites.length > 0 && (
+            <button
+              type="button"
+              className="favorites-clear"
+              onClick={onClear}
+              aria-label="Clear all favorite quotes"
+            >
+              Clear all
+            </button>
+          )}
+          <BackupRestore />
+        </div>
       </div>
       {favorites.length === 0 ? (
         <p className="favorites-empty">

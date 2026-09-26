@@ -3,6 +3,7 @@ import Welcome from './components/Welcome';
 import StatsBar from './components/StatsBar';
 import QuestCard from './components/QuestCard';
 import QuestDetail from './components/QuestDetail';
+import BackupRestore from './components/BackupRestore';
 import useGeolocation from './lib/useGeolocation';
 import useVicinityStore from './lib/useVicinityStore';
 import { hashSeed, cityNameFor, offsetLatLng } from './lib/questEngine';
@@ -79,6 +80,7 @@ export default function App() {
           <p className="fine-print">
             Progress saves on this device. Checkpoints are honor-system — the adventure is the point.
           </p>
+          <BackupRestore />
         </section>
         {selectedQuest && (
           <QuestDetail quest={selectedQuest} origin={store.origin} onComplete={store.completeCheckpoint} />
