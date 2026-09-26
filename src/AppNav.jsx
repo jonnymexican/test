@@ -1,5 +1,5 @@
 const LINKS = [
-  { href: '/test/apps/', label: '🏠' },
+  { href: '/test/hub.html', label: '🏠' },
   { href: '/test/', label: '✨' },
   { href: '/test/vicinitygo/', label: '🧭' },
   { href: 'https://jonnymexican.github.io/brocredit/', label: '🎖️' },
