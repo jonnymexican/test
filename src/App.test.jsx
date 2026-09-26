@@ -1,6 +1,8 @@
 import { render, screen, fireEvent, within, act } from '@testing-library/react';
 import { afterEach, vi } from 'vitest';
 import App from './App';
+import quotes from './quotes';
+import { todaysQuoteOfDay } from './dailyQuote';
 
 const heartButton = () => screen.getByRole('button', { name: /add quote to favorites/i });
 const quoteText = () => screen.getByRole('heading', { level: 3 }).textContent;
@@ -14,6 +16,13 @@ describe('App', () => {
   it('renders the app title', () => {
     render(<App />);
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/get inspired/i);
+  });
+
+  it('shows the quote of the day above the main quote', () => {
+    render(<App />);
+
+    expect(screen.getByRole('region', { name: /quote of the day/i })).toBeInTheDocument();
+    expect(screen.getByText(/quote of the day/i)).toBeInTheDocument();
   });
 
   it('shows an inspirational quote', () => {
@@ -42,6 +51,38 @@ describe('App', () => {
 
     expect(screen.getByRole('heading', { level: 3 }).textContent).toMatch(/— Carl Jung$/);
     expect(screen.getByRole('button', { name: 'Carl Jung' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('opens the daily quote from a ?q=daily deep link', () => {
+    const location = window.location;
+    delete window.location;
+    window.location = { search: '?q=daily' };
+    const scrollIntoView = vi.fn();
+    window.HTMLElement.prototype.scrollIntoView = scrollIntoView;
+
+    try {
+      render(<App />);
+
+      expect(screen.getByRole('heading', { level: 3 }).textContent).toBe(todaysQuoteOfDay());
+    } finally {
+      window.location = location;
+      delete window.HTMLElement.prototype.scrollIntoView;
+    }
+  });
+
+  it('opens a specific quote from a ?q= deep link and selects its collection', () => {
+    const location = window.location;
+    delete window.location;
+    window.location = { search: `?q=${encodeURIComponent(quotes[0])}` };
+
+    try {
+      render(<App />);
+
+      expect(screen.getByRole('heading', { level: 3 }).textContent).toBe(quotes[0]);
+      expect(screen.getByRole('button', { name: 'Classics' })).toHaveAttribute('aria-pressed', 'true');
+    } finally {
+      window.location = location;
+    }
   });
 
   it('adds a custom quote, shows it, and persists it across remount', () => {
@@ -257,6 +298,73 @@ describe('App', () => {
     }
   });
 
+  it('copies a deep link to the current quote from the share menu', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    try {
+      render(<App />);
+      const quote = quoteText();
+
+      fireEvent.click(screen.getByRole('button', { name: /share quote/i }));
+      await act(async () => {
+        fireEvent.click(screen.getByRole('menuitem', { name: /copy link to quote/i }));
+      });
+
+      expect(writeText).toHaveBeenCalledTimes(1);
+      const [copied] = writeText.mock.calls[0];
+      expect(new URL(copied).searchParams.get('q')).toBe(quote);
+    } finally {
+      delete navigator.clipboard;
+    }
+  });
+
+  it('copies today’s daily-quote link from the quote of the day card', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    try {
+      render(<App />);
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /copy link/i }));
+      });
+
+      expect(writeText).toHaveBeenCalledWith(expect.stringMatching(/\?q=daily$/));
+    } finally {
+      delete navigator.clipboard;
+    }
+  });
+
+  it('copies the quote of the day text from the card', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    try {
+      render(<App />);
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /copy quote/i }));
+      });
+
+      expect(writeText).toHaveBeenCalledWith(todaysQuoteOfDay());
+    } finally {
+      delete navigator.clipboard;
+    }
+  });
+
+  it('shows today’s quote in the feed from the quote of the day card', () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /show today's quote in the feed/i }));
+
+    expect(screen.getByRole('heading', { level: 3 }).textContent).toBe(todaysQuoteOfDay());
+    expect(window.location.search).toBe('?q=daily');
+
+    // Don't leak the query string into later tests.
+    window.history.replaceState(null, '', window.location.pathname);
+  });
+
   it('opens the Facebook sharer with the site URL and quote', () => {
     const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
 
@@ -297,6 +405,30 @@ describe('App', () => {
       openSpy.mockRestore();
       delete navigator.clipboard;
     }
+  });
+
+  it('toggles to light theme and persists the choice', () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /switch to light mode/i }));
+
+    expect(document.documentElement.dataset.theme).toBe('light');
+    expect(window.localStorage.getItem('get-inspired:theme')).toBe('light');
+    expect(screen.getByRole('button', { name: /switch to dark mode/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /switch to dark mode/i }));
+
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(window.localStorage.getItem('get-inspired:theme')).toBe('dark');
+  });
+
+  it('restores the saved theme on remount', () => {
+    window.localStorage.setItem('get-inspired:theme', 'light');
+
+    render(<App />);
+
+    expect(document.documentElement.dataset.theme).toBe('light');
+    expect(screen.getByRole('button', { name: /switch to dark mode/i })).toBeInTheDocument();
   });
 
   afterEach(() => {

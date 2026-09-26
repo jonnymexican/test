@@ -1,8 +1,7 @@
 import * as React from 'react';
 import { buildMailtoUrl, openMailClient } from './mailto';
 import { copyToClipboard } from './clipboard';
-
-const SITE_URL = 'https://jonnymexican.github.io/test/';
+import { SITE_URL, buildQuoteUrl } from './shareTarget';
 
 export default function ShareMenu({ quote }) {
   const [open, setOpen] = React.useState(false);
@@ -42,6 +41,12 @@ export default function ShareMenu({ quote }) {
 
   const shareCopy = async () => {
     const ok = await copyToClipboard(quote);
+    setCopied(ok);
+    if (ok) close();
+  };
+
+  const shareCopyLink = async () => {
+    const ok = await copyToClipboard(buildQuoteUrl(quote));
     setCopied(ok);
     if (ok) close();
   };
@@ -111,6 +116,9 @@ export default function ShareMenu({ quote }) {
           </button>
           <button type="button" role="menuitem" className="share-option" onClick={shareCopy}>
             <span aria-hidden="true">📋</span> Copy to clipboard
+          </button>
+          <button type="button" role="menuitem" className="share-option" onClick={shareCopyLink}>
+            <span aria-hidden="true">🔗</span> Copy link to quote
           </button>
           <button type="button" role="menuitem" className="share-option" onClick={shareX}>
             <span aria-hidden="true">𝕏</span> Post on X

@@ -37,12 +37,23 @@ Serves the production build locally so you can check it before deploying.
 index.html          # Vite entry point
 src/
   index.jsx         # React root
-  App.jsx           # Top-level layout
-  InspirationGenerator.jsx  # Quote state + "Inspire me again" button
+  App.jsx           # Top-level layout + theme state
+  InspirationGenerator.jsx  # Quote state, deep links (?q=), "Inspire me again" button
+  QuoteOfDay.jsx    # Daily quote card (share actions)
+  ShareMenu.jsx     # Share popover (email, copy, X, WhatsApp, Facebook, Instagram)
+  Favorites.jsx     # Saved quotes list
+  AddQuoteForm.jsx  # Add/edit/delete your own quotes
   FancyText.jsx     # Title/quote typography
   Copyright.jsx
-  quotes.js
+  ThemeToggle.jsx   # Light/dark toggle
+  dailyQuote.js     # Deterministic quote-of-the-day selection
+  shareTarget.js    # Site URL + quote deep-link builder
+  useTheme.js       # Persisted light/dark theme
+  useFavorites.js   # Persisted favorites
+  useQuotePool.js   # Quote pool + custom quotes
+  quotes.js, jungQuotes.js
   App.test.jsx      # Vitest + Testing Library tests
+  dailyQuote.test.js
   setupTests.js
 public/             # Static assets served at the site root
 vite.config.mjs     # Vite + Vitest config
