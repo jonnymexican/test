@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#131226" />
+    <meta name="description" content="All the little apps: quotes, quests, friend credit, and a task tracker." />
+    <title>Jon's Apps — the hub</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        background: linear-gradient(160deg, #1a1a2e 0%, #16213e 45%, #0f3460 100%);
+        color: #e8e6f0;
+        padding: 2rem 1rem;
+      }
+      main { width: 100%; max-width: 30rem; }
+      h1 {
+        margin: 0 0 0.3rem;
+        font-size: 1.9rem;
+        background: linear-gradient(90deg, #f8b500, #ff7e5f, #f8b500);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .tagline { margin: 0 0 1.6rem; color: rgba(232, 230, 240, 0.65); font-size: 0.95rem; }
+      .apps { display: flex; flex-direction: column; gap: 0.7rem; }
+      a.app {
+        display: flex;
+        align-items: center;
+        gap: 0.9rem;
+        background: rgba(255, 255, 255, 0.055);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 14px;
+        padding: 0.9rem 1rem;
+        text-decoration: none;
+        color: inherit;
+        transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+      }
+      a.app:hover { border-color: rgba(248, 181, 0, 0.65); background: rgba(248, 181, 0, 0.07); transform: translateY(-1px); }
+      .app-icon { font-size: 1.5rem; width: 2.4rem; text-align: center; }
+      .app-name { font-weight: 700; }
+      .app-desc { font-size: 0.82rem; color: rgba(232, 230, 240, 0.6); margin-top: 0.1rem; }
+      .app-arrow { margin-left: auto; color: rgba(232, 230, 240, 0.4); }
+      footer { margin-top: 1.6rem; font-size: 0.78rem; color: rgba(232, 230, 240, 0.4); text-align: center; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Jon's Apps</h1>
+      <p class="tagline">Small tools, zero accounts, everything stays on your device.</p>
+      <nav class="apps" aria-label="Apps">
+        <a class="app" href="/test/">
+          <span class="app-icon">✨</span>
+          <span>
+            <span class="app-name">Get Inspired</span>
+            <div class="app-desc">An inspirational quote a day, with favorites and your own collections.</div>
+          </span>
+          <span class="app-arrow">→</span>
+        </a>
+        <a class="app" href="/test/vicinitygo/">
+          <span class="app-icon">🧭</span>
+          <span>
+            <span class="app-name">vicinityGo</span>
+            <div class="app-desc">Micro-adventures from real places near you, mapped by OpenStreetMap.</div>
+          </span>
+          <span class="app-arrow">→</span>
+        </a>
+        <a class="app" href="https://jonnymexican.github.io/brocredit/">
+          <span class="app-icon">🎖️</span>
+          <span>
+            <span class="app-name">FriendCredit™</span>
+            <div class="app-desc">A tongue-in-cheek credit system for any friend group. Your conduct has been noted.</div>
+          </span>
+          <span class="app-arrow">→</span>
+        </a>
+        <a class="app" href="https://jonnymexican.github.io/adhdTracker/">
+          <span class="app-icon">✅</span>
+          <span>
+            <span class="app-name">adhdTracker</span>
+            <div class="app-desc">Every task needs an expected outcome before it can be checked off.</div>
+          </span>
+          <span class="app-arrow">→</span>
+        </a>
+      </nav>
+      <footer>Progress saves on this device. No accounts, no tracking, no nonsense.</footer>
+    </main>
+  </body>
+</html>

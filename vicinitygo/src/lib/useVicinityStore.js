@@ -42,10 +42,11 @@ export default function useVicinityStore() {
     }
   }, [origin, city, quests, bankedXp]);
 
-  const startRun = useCallback(({ origin, city, vibe, duration, seed }) => {
+  const startRun = useCallback(({ origin, city, vibe, duration, seed, quests: precomposed }) => {
     const earned = quests.filter((q) => q.done).reduce((n, q) => n + q.xp, 0);
     if (earned > 0) setBankedXp((b) => b + earned);
-    setQuests(generateQuests(origin, { vibe, duration, seed, city }));
+    // Precomposed quests (real OSM places) skip the fictional generator.
+    setQuests(precomposed ?? generateQuests(origin, { vibe, duration, seed, city }));
     setOrigin(origin);
     setCity(city);
   }, [quests]);
