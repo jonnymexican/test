@@ -25,3 +25,7 @@ logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# local clones of the other fleet repos (separate repos, separate deploys)
+/brocredit/
+/adhdtracker/
