@@ -23,6 +23,9 @@ jobs:
         with:
           # git subtree needs the full history to build the split
           fetch-depth: 0
+          # don't persist the default GITHUB_TOKEN auth header; it would
+          # override MIRROR_TOKEN on the push below (404 on private repo)
+          persist-credentials: false
 
       - name: Push vicinitygo/ subtree to jonnymexican/vicinityGo
         env:
