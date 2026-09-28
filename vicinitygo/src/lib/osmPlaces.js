@@ -93,7 +93,10 @@ const DEFAULT_NAMES = {
 
 /** Overpass QL: places within maxKm of origin, deduped by tag combo. */
 export function buildOverpassQuery(origin, maxKm) {
-  const around = `around:${Math.round(maxKm * 1000)}`;
+  // `around` MUST carry the center coordinates — a bare `around:R` filters a
+  // previous statement's output and, with none, silently matches nothing.
+  const center = `${origin.lat.toFixed(6)},${origin.lng.toFixed(6)}`;
+  const around = `around:${Math.round(maxKm * 1000)},${center}`;
   return `[out:json][timeout:15];
 (
   node(${around})["amenity"~"cafe|restaurant|bakery|pub|bar|fast_food|ice_cream|marketplace|library|fountain|bench"];

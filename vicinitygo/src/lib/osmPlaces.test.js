@@ -38,7 +38,9 @@ describe('osmPlaces', () => {
 
   it('builds an Overpass query around the origin', () => {
     const q = buildOverpassQuery(ORIGIN, 1.4);
-    expect(q).toContain('around:1400');
+    // The radius alone is not enough — `around` must carry the center coords,
+    // or Overpass silently returns zero elements.
+    expect(q).toContain('around:1400,47.606200,-122.332100');
     expect(q).toContain('[out:json]');
     expect(q).toContain('out body 60;');
   });
