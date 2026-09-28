@@ -49,6 +49,21 @@
       .app-desc { font-size: 0.82rem; color: rgba(232, 230, 240, 0.6); margin-top: 0.1rem; }
       .app-arrow { margin-left: auto; color: rgba(232, 230, 240, 0.4); }
       footer { margin-top: 1.6rem; font-size: 0.78rem; color: rgba(232, 230, 240, 0.4); text-align: center; }
+
+      .invite { margin-top: 1.6rem; padding: 1.1rem; border: 1px solid rgba(232, 230, 240, 0.12); border-radius: 16px; }
+      .invite h2 { margin: 0 0 0.3rem; font-size: 1.05rem; }
+      .invite-hint { margin: 0 0 0.8rem; font-size: 0.85rem; color: rgba(232, 230, 240, 0.6); }
+      .invite-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+      .invite-btn {
+        display: inline-flex; align-items: center; gap: 0.3rem;
+        border: 1px solid rgba(232, 230, 240, 0.18); border-radius: 999px;
+        background: rgba(232, 230, 240, 0.06); color: inherit;
+        padding: 0.45rem 0.9rem; font-size: 0.88rem; font-weight: 600;
+        text-decoration: none; cursor: pointer;
+      }
+      .invite-btn:hover { background: rgba(232, 230, 240, 0.12); }
+      .invite-btn#invite-fb { background: #1877f2; border-color: #1877f2; color: #fff; }
+      .invite-btn#invite-fb:hover { filter: brightness(1.08); }
     </style>
   </head>
   <body>
@@ -89,7 +104,42 @@
           <span class="app-arrow">→</span>
         </a>
       </nav>
+
+      <section class="invite" aria-label="Invite your friends">
+        <h2>Invite your friends</h2>
+        <p class="invite-hint">Send them the hub link — everyone's data stays on their own device.</p>
+        <div class="invite-row">
+          <a id="invite-wa" class="invite-btn" href="#" target="_blank" rel="noopener noreferrer">💬 WhatsApp</a>
+          <a id="invite-fb" class="invite-btn" href="#" target="_blank" rel="noopener noreferrer">📘 Facebook</a>
+          <button type="button" id="invite-copy" class="invite-btn invite-copy">🔗 Copy link</button>
+        </div>
+      </section>
+
       <footer>Progress saves on this device. No accounts, no tracking, no nonsense.</footer>
     </main>
+    <script>
+      (function () {
+        var hub = 'https://jonnymexican.github.io/test/hub.html';
+        var text = '🧭✨🎖️ Come play my little app fleet — quests at real places near you, a quote of the day, and a friend-conduct bureau:';
+        var wa = document.getElementById('invite-wa');
+        var fb = document.getElementById('invite-fb');
+        var copy = document.getElementById('invite-copy');
+        if (wa) wa.href = 'https://wa.me/?text=' + encodeURIComponent(text + ' ' + hub);
+        if (fb) fb.href = 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(hub) + '&quote=' + encodeURIComponent(text);
+        if (copy) {
+          copy.addEventListener('click', function () {
+            var done = function () { copy.textContent = '✓ Copied!'; setTimeout(function () { copy.textContent = '🔗 Copy link'; }, 2000); };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(hub).then(done, function () {});
+            } else {
+              var ta = document.createElement('textarea');
+              ta.value = hub; document.body.appendChild(ta); ta.select();
+              try { document.execCommand('copy'); done(); } catch (e) {}
+              ta.remove();
+            }
+          });
+        }
+      })();
+    </script>
   </body>
 </html>

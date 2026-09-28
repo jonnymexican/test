@@ -1,6 +1,7 @@
 import * as React from 'react';
 import Radar from './Radar';
 import { formatDistance, bearingDegrees, distanceMeters } from '../lib/geo';
+import { buildBragText, shareToFacebook, shareToWhatsApp, shareNative, hasNativeShare } from '../lib/social';
 
 const COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 
@@ -44,9 +45,37 @@ export default function QuestDetail({ quest, origin, onComplete }) {
       </ol>
 
       {remaining.length === 0 && (
-        <p className="quest-complete-note">
-          🎉 Quest complete — {quest.xp} XP earned. Find another one from the list!
-        </p>
+        <div className="quest-complete">
+          <p className="quest-complete-note">
+            🎉 Quest complete — {quest.xp} XP earned. Find another one from the list!
+          </p>
+          <div className="brag-row" aria-label="Share your quest win">
+            <span className="brag-label">Tell the group:</span>
+            <button
+              type="button"
+              className="brag-btn"
+              onClick={() => shareToFacebook(buildBragText(quest, quest.city))}
+            >
+              📘 Facebook
+            </button>
+            <button
+              type="button"
+              className="brag-btn"
+              onClick={() => shareToWhatsApp(buildBragText(quest, quest.city))}
+            >
+              💬 WhatsApp
+            </button>
+            {hasNativeShare() && (
+              <button
+                type="button"
+                className="brag-btn"
+                onClick={() => shareNative({ title: 'vicinityGo', text: buildBragText(quest, quest.city) })}
+              >
+                📤 More…
+              </button>
+            )}
+          </div>
+        </div>
       )}
     </section>
   );
