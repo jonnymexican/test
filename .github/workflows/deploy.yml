@@ -27,12 +27,18 @@ jobs:
 
       - run: npm ci
 
-      - run: npm test
+      - run: npm test -- --include "src/**/*.test.js*" --include "src/**/*.smoke.test.*"
 
       - run: npm run build
 
+      # Smoke-test vicinityGo's full flows too — a failure here blocks the
+      # whole Pages deploy, not just the sub-app.
+      - name: Smoke-test vicinityGo
+        run: npm test -- --include "src/**/*.smoke.test.*"
+        working-directory: vicinitygo
+
       - name: Build vicinityGo
-        run: npm ci && npm run build
+        run: npm run build
         working-directory: vicinitygo
 
       - name: Bundle vicinityGo into the Pages artifact
