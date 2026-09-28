@@ -793,3 +793,26 @@ html[data-theme='light'] .app .quote-cancel:hover {
   color: #2c2a38;
   border-color: rgba(44, 42, 56, 0.45);
 }
+
+/* The fixed nav pill overlays the top of the viewport; when the browser
+   scrolls a control into view (e.g. the custom-value input appearing, or
+   form focus on phones) that control could land underneath it and taps
+   would hit the nav instead. Keep interactive elements clear of it. */
+button,
+input,
+textarea,
+select,
+.chip {
+  scroll-margin-top: 64px;
+}
+
+/* On phones the floating pill is a tap trap: anything scrolled under it
+   (chips, buttons) silently sends the tap to another app. In normal flow
+   it can't overlap anything, and desktop keeps the floating version. */
+@media (max-width: 640px) {
+  .app-nav {
+    position: static;
+    margin: 0 auto 1.25rem;
+    width: fit-content;
+  }
+}
