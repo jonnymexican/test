@@ -1,6 +1,6 @@
 // vicinityGo service worker: complete app-shell precache (assets injected at
 // build time), cache-first for assets, network-first for the shell.
-const CACHE = 'vicinitygo-v5';
+const CACHE = 'vicinitygo-v6';
 const ASSETS = [
   './',
   './index.html',

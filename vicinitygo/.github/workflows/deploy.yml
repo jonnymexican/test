@@ -1,0 +1,51 @@
+name: Deploy vicinityGo (mirror)
+
+# This file lives under vicinitygo/.github, so GitHub ignores it in the
+# monorepo (nested .github directories are not scanned). In the
+# jonnymexican/vicinityGo mirror, the subtree makes this file the repo's
+# .github/workflows/deploy.yml — and it then deploys the app to Pages.
+#
+# One-time setup: enable Pages with build_type=workflow on the mirror.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm test
+
+      # Absolute base so the SW registration and manifest links point at
+      # /vicinityGo/ regardless of how the SW resolves its relative precache.
+      - run: npm run build -- --base=/vicinityGo/
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

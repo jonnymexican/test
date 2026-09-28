@@ -1,4 +1,5 @@
 import { render, screen, fireEvent, within, act } from '@testing-library/react';
+import { vi } from 'vitest';
 import App from './App';
 
 const setup = () => {
@@ -122,5 +123,64 @@ describe('vicinityGo location denied', () => {
         writable: true,
       });
     }
+  });
+});
+
+describe('vicinityGo share target', () => {
+  const originalFetch = global.fetch;
+
+  const landWithSearch = (search) => {
+    window.localStorage.clear();
+    window.history.pushState(null, '', `/${search}`);
+  };
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    vi.unstubAllGlobals();
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('auto-starts a run around a shared place with coordinates', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
+    landWithSearch('?title=Space+Needle&url=https%3A%2F%2Fmaps.google.com%2F%4047.6205%2C-122.3493%2C17z');
+
+    render(<App />);
+
+    // OSM is unreachable in tests → fictional districts around the point.
+    expect(await screen.findByText(/quests near Shared place/i)).toBeInTheDocument();
+    expect(window.location.search).toBe(''); // share consumed
+  });
+
+  it('shows a dismissible banner for shares without coordinates', () => {
+    landWithSearch('?text=check+out+this+cool+bench');
+
+    render(<App />);
+
+    const banner = screen.getByRole('status');
+    expect(banner).toHaveTextContent(/check out this cool bench/i);
+    expect(screen.getByRole('button', { name: /dismiss/i })).toBeInTheDocument();
+    // No run was started.
+    expect(screen.getByRole('button', { name: /use my location/i })).toBeEnabled();
+
+    fireEvent.click(screen.getByRole('button', { name: /dismiss/i }));
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('does not hijack an active run when a share lands mid-adventure', () => {
+    landWithSearch('?text=47.5,-122.3');
+    window.localStorage.setItem(
+      'vicinitygo:progress',
+      JSON.stringify({
+        origin: { lat: 47.6, lng: -122.33 },
+        city: 'Capitol Hill',
+        quests: [{ id: 'q1', done: false, xp: 30, checkpoints: [] }],
+        bankedXp: 0,
+      })
+    );
+
+    render(<App />);
+
+    expect(screen.getByText(/quests near Capitol Hill/i)).toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 });

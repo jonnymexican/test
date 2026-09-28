@@ -11,6 +11,7 @@ import { hashSeed, cityNameFor, offsetLatLng } from './lib/questEngine';
 import { CITIES } from './lib/questCatalog';
 import { fetchRealPlaces, fetchPlaceName } from './lib/osmPlaces';
 import { composeRealQuests, DURATION_MAX_KM } from './lib/realQuests';
+import { parseShareTarget } from './lib/shareIntake';
 
 export default function App() {
   const geo = useGeolocation();
@@ -19,8 +20,58 @@ export default function App() {
   const pendingRef = React.useRef(null);
   const startedRef = React.useRef(false);
   const [realStatus, setRealStatus] = React.useState(null); // 'loading' | 'live' | 'fallback'
+  const [shared, setShared] = React.useState(() => {
+    try {
+      return parseShareTarget(new URLSearchParams(window.location.search));
+    } catch {
+      return null;
+    }
+  });
 
   const runActive = store.origin != null && store.quests.length > 0;
+
+  const loadSharedPoint = React.useCallback(
+    (intake) => {
+      if (!intake?.coords) return;
+      startedRef.current = true;
+      setRealStatus('loading');
+      const { lat, lng } = intake.coords;
+      const origin = { lat, lng };
+      const seed = hashSeed(`share:${lat}:${lng}`);
+
+      (async () => {
+        let city = 'Shared place';
+        let quests = null;
+        try {
+          const places = await fetchRealPlaces(origin, { maxKm: DURATION_MAX_KM.quick });
+          const named = await fetchPlaceName(origin, city);
+          city = named;
+          if (places.length >= 4) {
+            quests = composeRealQuests(places, origin, { city, duration: 'quick', seed });
+            setRealStatus('live');
+          }
+        } catch {
+          // fall through to fictional districts around the shared point
+        }
+        if (!quests) {
+          setRealStatus('fallback');
+        }
+        store.startRun({ origin, city, vibe: 'all', duration: 'quick', seed, quests });
+        // Consume the share so a reload (or a later "New adventure") doesn't
+        // resurrect a stale intake.
+        window.history.replaceState(null, '', window.location.pathname);
+        setShared(null);
+      })();
+    },
+    [store]
+  );
+
+  // A share-target launch lands on start_url with ?title/text/url; turn it
+  // into a run centered on the shared point (only when no run is active).
+  React.useEffect(() => {
+    if (!shared?.coords || runActive) return;
+    loadSharedPoint(shared);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // When GPS comes back, try real OSM places first; fall back to the
   // fictional districts if Overpass is down or returns too little.
@@ -97,6 +148,34 @@ export default function App() {
     return (
       <div className="app-shell">
         <AppNav current="/test/vicinitygo/" />
+        {shared && (
+          <div className="toast" role="status">
+            {shared.coords ? (
+              <>
+                <strong>Shared place received{shared.label ? `: “${shared.label}”` : ''}.</strong>{' '}
+                Want a micro-adventure around it?
+                <div className="cta-row">
+                  <button type="button" className="primary-cta" onClick={() => loadSharedPoint(shared)}>
+                    Generate quests here
+                  </button>
+                  <button type="button" className="secondary-cta" onClick={() => setShared(null)}>
+                    Not now
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <strong>Shared: “{shared.label}”.</strong> We couldn't find map coordinates in
+                that — share a Maps or OpenStreetMap link instead.
+                <div className="cta-row">
+                  <button type="button" className="secondary-cta" onClick={() => setShared(null)}>
+                    Dismiss
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
         <Welcome onGo={handleDistrict} onUseLocation={handleUseLocation} locating={geo.status === 'locating' || realStatus === 'loading'} />
         {realStatus === 'loading' && (
           <div className="toast" role="status">
