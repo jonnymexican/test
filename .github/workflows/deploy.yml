@@ -27,14 +27,16 @@ jobs:
 
       - run: npm ci
 
-      - run: npm test -- --include "src/**/*.test.js*" --include "src/**/*.smoke.test.*"
+      # Full suite (vitest v5 has no --include CLI flag; the config's
+      # include patterns already cover *.test.* and *.smoke.test.*)
+      - run: npm test
 
       - run: npm run build
 
       # Smoke-test vicinityGo's full flows too — a failure here blocks the
       # whole Pages deploy, not just the sub-app.
       - name: Smoke-test vicinityGo
-        run: npm test -- --include "src/**/*.smoke.test.*"
+        run: npm test
         working-directory: vicinitygo
 
       - name: Build vicinityGo
