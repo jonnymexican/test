@@ -51,14 +51,24 @@ async function readJson(request) {
 
 function validateState(state) {
   if (!state || typeof state !== 'object') return false;
-  if (!Array.isArray(state.friends)) return false;
-  if (!Array.isArray(state.transactions)) return false;
-  if (state.friends.length > 500 || state.transactions.length > 5000) return false;
-  return state.friends.every(
-    (f) => f && typeof f.id === 'string' && typeof f.name === 'string'
-  ) && state.transactions.every(
-    (t) => t && typeof t.id === 'string' && typeof t.friendId === 'string'
-  );
+  // Known app lists; each app sends the ones it uses. Unknown apps could
+  // reuse the same schema with a different list name later.
+  for (const key of ['friends', 'transactions', 'tasks']) {
+    const list = state[key];
+    if (list === undefined) continue;
+    if (!Array.isArray(list) || list.length > 5000) return false;
+    if (!list.every((item) => item && typeof item.id === 'string')) return false;
+  }
+  // Tombstones: { id, deletedAt } markers so deletions propagate between
+  // devices instead of being undone by the next merge.
+  if (state.tombstones !== undefined) {
+    const tb = state.tombstones;
+    if (!Array.isArray(tb) || tb.length > 20000) return false;
+    if (!tb.every((t) => t && typeof t.id === 'string' && Number.isFinite(Number(t.deletedAt)))) {
+      return false;
+    }
+  }
+  return true;
 }
 
 export default {
@@ -122,7 +132,14 @@ export default {
       const raw = await env.VAULT.get(key);
       if (raw == null) return json({ error: 'unknown_bureau' }, 404);
       const state = JSON.parse(raw);
-      return json({ v: state.v ?? 1, friends: state.friends ?? [], transactions: state.transactions ?? [] });
+      return json({
+        v: state.v ?? 1,
+        friends: state.friends,
+        transactions: state.transactions,
+        tasks: state.tasks,
+        tombstones: state.tombstones,
+        updatedAt: state.updatedAt,
+      });
     }
 
     if (method === 'PUT') {
@@ -149,6 +166,8 @@ export default {
         v: expectedV + 1,
         friends: body.state.friends,
         transactions: body.state.transactions,
+        tasks: body.state.tasks,
+        tombstones: body.state.tombstones,
         updatedAt: new Date().toISOString(),
       };
       await env.VAULT.put(key, JSON.stringify(nextState), {
