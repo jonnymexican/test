@@ -100,6 +100,10 @@ describe('Daily Puzzle League smoke', () => {
     await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
     expect(screen.getAllByText('Jon').length).toBeGreaterThan(0); // board row + identity card
     expect(vault.store.has('PL-TEST-01')).toBe(true);
+
+    // The Today section lists Jon as cracked-it (after the debounced push syncs).
+    await waitFor(() => expect(screen.getByText(/cracked it with/i)).toBeTruthy(), { timeout: 3000 });
+    expect(screen.getByText(/\(you\)/)).toBeTruthy();
   });
 
   it('rejects a wrong guess, reveals a clue, then solves', async () => {
@@ -122,6 +126,8 @@ describe('Daily Puzzle League smoke', () => {
     fireEvent.click(screen.getByRole('button', { name: /guess/i }));
     await waitFor(() => expect(screen.getByText(/cracked it/i)).toBeTruthy());
     expect(screen.getByText(/3 clues/i)).toBeTruthy(); // scored with the revealed clue counted
+    // No league joined: the Today section stays coy and league-free.
+    expect(screen.getByText(/just you vs\. the numbers/i)).toBeTruthy();
   });
 
   it('persists the player, solve, and league across a remount', async () => {
@@ -160,5 +166,9 @@ describe('Daily Puzzle League smoke', () => {
     await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
     expect(screen.getByText('Sam')).toBeTruthy();
     expect(screen.getByText('90')).toBeTruthy();
+    // Sam solved yesterday, not today — and Jon hasn't solved yet, so the
+    // Today section must NOT leak whether Sam has cracked today's puzzle.
+    expect(screen.getByText(/no peeking/i)).toBeTruthy();
+    expect(screen.queryByText(/still thinking/i)).toBeNull();
   });
 });

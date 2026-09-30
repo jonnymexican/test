@@ -333,6 +333,46 @@ function LeaguePanel({ league }) {
   );
 }
 
+function TodayBoard({ league }) {
+  const players = league.board;
+  const solvedRows = players.filter((p) => p.today && p.today.solved);
+  const unsolvedRows = players.filter((p) => p.today && !p.today.solved);
+  const meSolved = league.solved;
+
+  return (
+    <section className="panel today-panel" aria-label="Today's board">
+      <h2 className="panel-title">Today</h2>
+      {!meSolved && (
+        <p className="muted">You haven't cracked it yet — no peeking at theirs.</p>
+        )}
+      {meSolved && solvedRows.length === 0 && (
+        <p className="muted">You're the first to crack it. Brag accordingly.</p>
+      )}
+      {meSolved && solvedRows.length > 0 && (
+        <ul className="today-list">
+          {solvedRows.map((row) => (
+            <li key={row.playerId} className="today-row">
+              <span className="today-name">{row.name}</span>
+              <span className="today-detail">
+                cracked it with {row.today.clues} clue{row.today.clues === 1 ? '' : 's'}
+                {league.me && row.playerId === league.me.id ? ' (you)' : ''}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {meSolved && unsolvedRows.length > 0 && (
+        <p className="muted today-pending">
+          Still thinking: {unsolvedRows.map((r) => r.name).join(', ')}
+        </p>
+      )}
+      {players.length === 0 && (
+        <p className="muted">No league joined — today it's just you vs. the numbers.</p>
+      )}
+    </section>
+  );
+}
+
 export default function App() {
   const league = useLeague();
   const streakLabel = useMemo(() => {
@@ -352,6 +392,7 @@ export default function App() {
 
       <CluePanel league={league} />
       <GamePanel league={league} />
+      <TodayBoard league={league} />
       <IdentityPanel league={league} />
       <LeaguePanel league={league} />
 

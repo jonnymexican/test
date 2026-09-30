@@ -101,6 +101,30 @@ describe('computeLeaderboard', () => {
     expect(rows.map((r) => r.total)).toEqual([...rows.map((r) => r.total)].sort((a, b) => b - a));
   });
 
+  it('reports per-player today status for the daily board', () => {
+    const today = 100;
+    const players = [
+      { id: 'p1', name: 'Jon' },
+      { id: 'p2', name: 'Sam' },
+    ];
+    const results = [
+      { id: 'p1:100', playerId: 'p1', dayNum: 100, base: 110, clues: 3 },
+      { id: 'p1:99', playerId: 'p1', dayNum: 99, base: 80, clues: 4 },
+    ];
+    const rows = computeLeaderboard(players, results, today);
+    expect(rows[0].today).toEqual({ solved: true, clues: 3 });
+    expect(rows[1].today).toEqual({ solved: false, clues: null });
+  });
+
+  it('does not count junk clue values for the today panel', () => {
+    const rows = computeLeaderboard(
+      [{ id: 'p1', name: 'Jon' }],
+      [{ id: 'p1:100', playerId: 'p1', dayNum: 100, base: 60, clues: 'lots' }],
+      100
+    );
+    expect(rows[0].today).toEqual({ solved: true, clues: 0 });
+  });
+
   it('ignores results for unknown players and junk day numbers', () => {
     const rows = computeLeaderboard([{ id: 'p1', name: 'Jon' }], [{ id: 'x:abc', playerId: 'zz', dayNum: 'abc', base: 5 }], 10);
     expect(rows).toHaveLength(1);

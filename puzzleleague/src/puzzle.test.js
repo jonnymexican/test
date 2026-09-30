@@ -103,6 +103,18 @@ describe('generation', () => {
     const d = new Date();
     expect(getPuzzle(d)).toBe(getPuzzle(d));
   });
+
+  it('never skips a day or ships an ambiguous clue set (first year)', () => {
+    // Permanent regression sweep: every day of year one must generate a
+    // puzzle whose clues admit exactly the hidden set — nothing else.
+    for (let day = 0; day <= 365; day += 1) {
+      const p = generatePuzzle(day);
+      expect(p, `day ${day} generated no puzzle`).not.toBeNull();
+      const solutions = solve(p.clues);
+      expect(solutions, `day ${day} is ambiguous (${solutions.length} sets fit)`).toHaveLength(1);
+      expect(solutions[0]).toEqual([...p.solution].sort((a, b) => a - b));
+    }
+  });
 });
 
 describe('solver', () => {

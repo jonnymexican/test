@@ -152,6 +152,7 @@ export function computeLeaderboard(players, results, todayDayNum) {
       const mine = (byPlayer.get(p.id) || []).filter((r) => Number.isFinite(Number(r.dayNum)));
       const scores = mine.map((r) => Number(r.base) || 0);
       const clues = mine.map((r) => Number(r.clues) || 0);
+      const todayResult = mine.find((r) => Number(r.dayNum) === todayDayNum);
       return {
         playerId: p.id,
         name: p.name,
@@ -161,6 +162,9 @@ export function computeLeaderboard(players, results, todayDayNum) {
         avgClues: clues.length ? clues.reduce((a, b) => a + b, 0) / clues.length : 0,
         streak: 0,
         days: mine.map((r) => Number(r.dayNum)),
+        // Today at a glance: has this player cracked the daily yet, and how
+        // many clues did it take? (Powers the "Today" section of the board.)
+        today: todayResult ? { solved: true, clues: Number(todayResult.clues) || 0 } : { solved: false, clues: null },
       };
     })
     .map((row) => ({ ...row, streak: computeRowStreak(row.days, todayDayNum) }))
