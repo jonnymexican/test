@@ -26,6 +26,9 @@ jobs:
           cache: npm
 
       - run: npm ci
+      # puzzleleague and vicinitygo resolve their dev deps from the root
+      # node_modules (same versions pinned in their own lockfiles), so no
+      # separate npm ci is needed — matching how vicinitygo already runs.
 
       # Full suite (vitest v5 has no --include CLI flag; the config's
       # include patterns already cover *.test.* and *.smoke.test.*)
@@ -47,6 +50,20 @@ jobs:
         run: |
           mkdir -p dist/vicinitygo
           cp -r vicinitygo/dist/. dist/vicinitygo/
+
+      # Daily Puzzle League rides the same artifact pipeline.
+      - name: Test puzzleleague
+        run: npm test
+        working-directory: puzzleleague
+
+      - name: Build puzzleleague
+        run: npm run build
+        working-directory: puzzleleague
+
+      - name: Bundle puzzleleague into the Pages artifact
+        run: |
+          mkdir -p dist/puzzleleague
+          cp -r puzzleleague/dist/. dist/puzzleleague/
 
       - uses: actions/upload-pages-artifact@v3
         with:

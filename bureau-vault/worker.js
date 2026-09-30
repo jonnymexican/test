@@ -13,11 +13,14 @@
  *   GET    /bureau/<CODE>          → { v, friends, transactions } | 404 unknown | 401 bad code
  *   PUT    /bureau/<CODE>          → body { expectedV, state }; CAS: fails 409 if remote v moved
  *   DELETE /bureau/<CODE>          → { ok } (wipes this bureau; code required)
- *   GET    /admin/bureaus          → { bureaus: [{code, size, updatedAt}] }   (admin)
- *   DELETE /admin/bureaus/<CODE>   → { ok }                                    (admin)
+ *   GET/PUT/DELETE /league/<CODE>  → same contract for Daily Puzzle League states
+ *                                   ({ players, results } payloads; KV prefix pl:v1:)
+ *   GET    /admin/bureaus          → { bureaus: [{code, kind, size, updatedAt}] } (admin)
+ *   DELETE /admin/bureaus/<CODE>   → { ok }                                      (admin)
  */
 
 const KEY_PREFIX = 'fc:v1:';
+const LEAGUE_PREFIX = 'pl:v1:'; // Daily Puzzle League states share the same KV namespace
 const MAX_BODY_BYTES = 512 * 1024; // 512 KB is plenty for a friend ledger
 const CODE_RE = /^[A-Za-z0-9-]{4,40}$/;
 
@@ -53,7 +56,7 @@ function validateState(state) {
   if (!state || typeof state !== 'object') return false;
   // Known app lists; each app sends the ones it uses. Unknown apps could
   // reuse the same schema with a different list name later.
-  for (const key of ['friends', 'transactions', 'tasks']) {
+  for (const key of ['friends', 'transactions', 'tasks', 'players', 'results']) {
     const list = state[key];
     if (list === undefined) continue;
     if (!Array.isArray(list) || list.length > 5000) return false;
@@ -91,18 +94,21 @@ export default {
         return json({ error: 'forbidden' }, 403);
       }
       const bureaus = [];
-      let cursor;
-      do {
-        const page = await env.VAULT.list({ prefix: KEY_PREFIX, cursor });
-        for (const k of page.keys) {
-          bureaus.push({
-            code: k.name.slice(KEY_PREFIX.length),
-            size: k.metadata?.size ?? null,
-            updatedAt: k.metadata?.updatedAt ?? null,
-          });
-        }
-        cursor = page.list_complete ? undefined : page.cursor;
-      } while (cursor);
+      for (const prefix of [KEY_PREFIX, LEAGUE_PREFIX]) {
+        let cursor;
+        do {
+          const page = await env.VAULT.list({ prefix, cursor });
+          for (const k of page.keys) {
+            bureaus.push({
+              code: k.name.slice(prefix.length),
+              kind: prefix === LEAGUE_PREFIX ? 'league' : 'bureau',
+              size: k.metadata?.size ?? null,
+              updatedAt: k.metadata?.updatedAt ?? null,
+            });
+          }
+          cursor = page.list_complete ? undefined : page.cursor;
+        } while (cursor);
+      }
       return json({ bureaus });
     }
 
@@ -112,7 +118,74 @@ export default {
         return json({ error: 'forbidden' }, 403);
       }
       await env.VAULT.delete(KEY_PREFIX + adminDelMatch[1]);
+      await env.VAULT.delete(LEAGUE_PREFIX + adminDelMatch[1]);
       return json({ ok: true });
+    }
+
+    // ---------- league routes (Daily Puzzle League) ----------
+    // Kept above the bureau router: that one 404s any non-/bureau path.
+    const lm = path.match(/^\/league\/([A-Za-z0-9-]+)$/);
+    if (lm) {
+      const code = lm[1];
+      const codeHeader = request.headers.get('x-vault-code');
+      if (!codeOk(code) || codeHeader !== code) {
+        return json({ error: 'unauthorized' }, 401);
+      }
+      const key = LEAGUE_PREFIX + code;
+
+      if (method === 'GET') {
+        const raw = await env.VAULT.get(key);
+        if (raw == null) return json({ error: 'unknown_league' }, 404);
+        const state = JSON.parse(raw);
+        return json({
+          v: state.v ?? 1,
+          players: state.players,
+          results: state.results,
+          tombstones: state.tombstones,
+          updatedAt: state.updatedAt,
+        });
+      }
+
+      if (method === 'PUT') {
+        const body = await readJson(request);
+        if (!body || !validateState(body.state)) {
+          return json({ error: 'bad_request' }, 400);
+        }
+        const expectedV = Number(body.expectedV);
+        if (!Number.isInteger(expectedV) || expectedV < 0) {
+          return json({ error: 'bad_request' }, 400);
+        }
+        const remoteRaw = await env.VAULT.get(key);
+        if (remoteRaw == null && expectedV !== 0) {
+          return json({ error: 'conflict', remoteV: 0, reason: 'deleted_elsewhere' }, 409);
+        }
+        if (remoteRaw != null) {
+          const remote = JSON.parse(remoteRaw);
+          const remoteV = remote.v ?? 1;
+          if (remoteV !== expectedV) {
+            return json({ error: 'conflict', remoteV, reason: 'version_moved' }, 409);
+          }
+        }
+        const nextState = {
+          v: expectedV + 1,
+          players: body.state.players,
+          results: body.state.results,
+          tombstones: body.state.tombstones,
+          updatedAt: new Date().toISOString(),
+        };
+        await env.VAULT.put(key, JSON.stringify(nextState), {
+          metadata: { size: JSON.stringify(nextState).length, updatedAt: nextState.updatedAt },
+        });
+        return json({ ok: true, v: nextState.v });
+      }
+
+      if (method === 'DELETE') {
+        const raw = await env.VAULT.get(key);
+        await env.VAULT.delete(key);
+        return json({ ok: true, existed: raw != null });
+      }
+
+      return json({ error: 'method_not_allowed' }, 405);
     }
 
     // ---------- bureau routes ----------
