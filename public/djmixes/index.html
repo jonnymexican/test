@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#131226" />
+    <meta name="description" content="The DJ archive — old mixes, streamed straight from the vault." />
+    <title>The DJ Vault</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        background: linear-gradient(160deg, #131226 0%, #1c1642 55%, #2b1b4d 100%);
+        color: #e8e6f0;
+        padding: 2rem 1rem 7rem;
+      }
+      main { max-width: 44rem; margin: 0 auto; }
+      h1 {
+        margin: 0 0 0.3rem;
+        font-size: 1.9rem;
+        background: linear-gradient(90deg, #f8b500, #ff7e5f, #f8b500);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .tagline { margin: 0 0 1.4rem; color: rgba(232, 230, 240, 0.6); font-size: 0.95rem; }
+      .status { color: rgba(232, 230, 240, 0.55); font-size: 0.9rem; margin: 0 0 1rem; }
+      .group { margin: 0 0 1.6rem; }
+      .group-title {
+        font-size: 1.05rem; margin: 0 0 0.6rem;
+        color: #f8b500;
+      }
+      ul.mixes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+      a.mix {
+        display: flex; align-items: center; gap: 0.8rem;
+        background: rgba(255, 255, 255, 0.055);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 14px;
+        padding: 0.8rem 1rem;
+        text-decoration: none; color: inherit;
+        transition: border-color 0.15s ease, background 0.15s ease;
+      }
+      a.mix:hover { border-color: rgba(248, 181, 0, 0.65); background: rgba(248, 181, 0, 0.07); }
+      a.mix.playing { border-color: #58d68d; background: rgba(88, 214, 141, 0.09); }
+      .mix-icon { font-size: 1.3rem; width: 1.8rem; text-align: center; flex: none; }
+      .mix-name { font-weight: 600; overflow-wrap: anywhere; }
+      .mix-meta { margin-left: auto; color: rgba(232, 230, 240, 0.5); font-size: 0.8rem; flex: none; }
+      .player-dock {
+        position: fixed; left: 0; right: 0; bottom: 0;
+        background: rgba(19, 18, 38, 0.96);
+        border-top: 1px solid rgba(255, 255, 255, 0.14);
+        padding: 0.7rem 1rem 0.9rem;
+        backdrop-filter: blur(6px);
+      }
+      .player-inner { max-width: 44rem; margin: 0 auto; }
+      .now-playing { font-size: 0.88rem; margin: 0 0 0.45rem; color: rgba(232, 230, 240, 0.85);
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      audio { width: 100%; display: block; }
+      footer { margin-top: 2rem; font-size: 0.78rem; color: rgba(232, 230, 240, 0.4); text-align: center; }
+      a { color: rgba(248, 181, 0, 0.85); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>The DJ Vault</h1>
+      <p class="tagline">Old mixes, straight from the archive. Pick one and press play.</p>
+      <p class="status" id="status">Loading the crates…</p>
+      <div id="mixes"></div>
+      <footer>
+        Audio lives in the
+        <a href="https://github.com/jonnymexican/dj-mixes">dj-mixes archive</a> as release
+        assets. Part of <a href="/test/hub.html">Jon's Apps</a>.
+      </footer>
+    </main>
+
+    <div class="player-dock" id="dock" hidden>
+      <div class="player-inner">
+        <p class="now-playing" id="now-playing"></p>
+        <audio id="audio" controls preload="none"></audio>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        var API = 'https://api.github.com/repos/jonnymexican/dj-mixes/releases?per_page=100';
+        var statusEl = document.getElementById('status');
+        var mixesEl = document.getElementById('mixes');
+        var dock = document.getElementById('dock');
+        var audio = document.getElementById('audio');
+        var nowEl = document.getElementById('now-playing');
+        var currentLink = null;
+
+        function mb(bytes) {
+          return Math.round(bytes / 1000000) + ' MB';
+        }
+
+        function extLabel(name) {
+          var m = name.match(/\.([a-z0-9]+)$/i);
+          return m ? m[1].toUpperCase() : 'AUDIO';
+        }
+
+        function play(link, name, url) {
+          if (currentLink) currentLink.classList.remove('playing');
+          currentLink = link;
+          link.classList.add('playing');
+          nowEl.textContent = '▶ ' + name;
+          audio.src = url;
+          audio.play();
+          dock.hidden = false;
+        }
+
+        fetch(API)
+          .then(function (r) {
+            if (!r.ok) throw new Error('GitHub API said ' + r.status);
+            return r.json();
+          })
+          .then(function (releases) {
+            var total = 0;
+            releases.forEach(function (rel) {
+              var assets = (rel.assets || []).filter(function (a) {
+                return /\.(mp3|wav|flac|m4a|ogg|aiff|aif)$/i.test(a.name);
+              });
+              if (!assets.length) return;
+              total += assets.length;
+              var group = document.createElement('section');
+              group.className = 'group';
+              var h = document.createElement('h2');
+              h.className = 'group-title';
+              h.textContent = rel.name || rel.tag_name;
+              group.appendChild(h);
+              var ul = document.createElement('ul');
+              ul.className = 'mixes';
+              assets
+                .sort(function (a, b) { return a.name.localeCompare(b.name); })
+                .forEach(function (asset) {
+                  var li = document.createElement('li');
+                  var a = document.createElement('a');
+                  a.className = 'mix';
+                  a.href = asset.browser_download_url;
+                  var icon = document.createElement('span');
+                  icon.className = 'mix-icon';
+                  icon.textContent = '🎧';
+                  var name = document.createElement('span');
+                  name.className = 'mix-name';
+                  name.textContent = asset.name.replace(/\.[a-z0-9]+$/i, '');
+                  var meta = document.createElement('span');
+                  meta.className = 'mix-meta';
+                  meta.textContent = extLabel(asset.name) + ' · ' + mb(asset.size);
+                  a.appendChild(icon);
+                  a.appendChild(name);
+                  a.appendChild(meta);
+                  a.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    play(a, asset.name, asset.browser_download_url);
+                  });
+                  li.appendChild(a);
+                  ul.appendChild(li);
+                });
+              group.appendChild(ul);
+              mixesEl.appendChild(group);
+            });
+            if (total === 0) {
+              statusEl.textContent = 'The vault is empty — upload the first release (see the archive README).';
+            } else {
+              statusEl.textContent = total + ' mix' + (total === 1 ? '' : 'es') + ' in the vault.';
+            }
+          })
+          .catch(function (err) {
+            statusEl.textContent = 'Could not load the archive (' + err.message + '). Try refreshing.';
+          });
+      })();
+    </script>
+  </body>
+</html>
