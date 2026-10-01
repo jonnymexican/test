@@ -80,8 +80,9 @@ describe('Daily Puzzle League smoke', () => {
     render(<App />);
     await registerAndJoin('Jon');
 
-    // Two clues are free; the rest start hidden.
-    const revealed = screen.getAllByText(/one of the numbers is|□ \+ □ =|▢ \+ ▢ =/i);
+    // Two clues are free; the rest start hidden. (Count rows, not clue
+    // text — the operator mix differs from day to day.)
+    const revealed = document.querySelectorAll('.clue-revealed');
     expect(revealed.length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText(/clue #3 — hidden/i)).toBeTruthy();
 
