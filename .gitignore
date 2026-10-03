@@ -30,4 +30,5 @@ yarn-error.log*
 /brocredit/
 /adhdtracker/
 /dj-mixes/
+/art/
 node_modules/
