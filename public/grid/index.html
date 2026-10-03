@@ -206,7 +206,7 @@
         };
         $('run-btn').textContent = '⏸ Pause';
         $('run-btn').classList.add('stop');
-        engine.postMessage({ type: 'start', api: n.api, nodeId: n.nodeId, key: n.key });
+        engine.postMessage({ type: 'start', api: n.api, nodeId: n.nodeId, nodeKey: n.key });
       }
       function stopEngine() {
         if (!engine) return;
