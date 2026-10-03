@@ -29,4 +29,5 @@ yarn-error.log*
 # local clones of the other fleet repos (separate repos, separate deploys)
 /brocredit/
 /adhdtracker/
+/dj-mixes/
 node_modules/
