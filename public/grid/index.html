@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0a1410" />
+    <meta name="description" content="FleetGrid — donate your idle browser cycles to the fleet's cause grid, earn FleetCredits." />
+    <title>FleetGrid — donate idle cycles</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; min-height: 100vh;
+        font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        background: radial-gradient(circle at 20% -10%, #12331f 0%, #0a1a12 55%, #060e0a 100%);
+        color: #e6f0e8; padding: 2rem 1rem 4rem;
+      }
+      main { max-width: 56rem; margin: 0 auto; }
+      h1 {
+        margin: 0 0 0.3rem; font-size: 1.9rem;
+        background: linear-gradient(90deg, #6ee7b7, #a7f3d0, #60a5fa);
+        -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+      }
+      .tagline { margin: 0 0 1.4rem; color: rgba(230, 240, 232, 0.6); font-size: 0.95rem; }
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; }
+      @media (max-width: 46rem) { .grid { grid-template-columns: 1fr; } }
+      .card {
+        background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.13);
+        border-radius: 16px; padding: 1rem 1.1rem 1.1rem;
+      }
+      .card-wide { grid-column: 1 / -1; }
+      h2 { margin: 0 0 0.55rem; font-size: 1.02rem; color: #cfe8d8; }
+      .big { margin: 0 0 0.35rem; font-size: 1.5rem; font-weight: 700; font-family: Consolas, 'Courier New', monospace; color: #fff; }
+      .detail { margin: 0; font-size: 0.9rem; color: rgba(230, 240, 232, 0.72); }
+      .join { display: flex; gap: 0.5rem; margin: 0.6rem 0 0.5rem; flex-wrap: wrap; }
+      input {
+        flex: 1; min-width: 10rem; background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.16); color: #e6f0e8;
+        border-radius: 10px; padding: 0.5rem 0.7rem; font-size: 0.9rem; font-family: inherit;
+      }
+      input:focus { outline: none; border-color: rgba(110, 231, 183, 0.55); }
+      button {
+        background: rgba(110, 231, 183, 0.12); border: 1px solid rgba(110, 231, 183, 0.45);
+        color: #a7f3d0; border-radius: 10px; padding: 0.5rem 0.9rem; font-size: 0.88rem;
+        font-weight: 600; cursor: pointer; font-family: inherit;
+        transition: background 0.15s ease, border-color 0.15s ease;
+      }
+      button:hover { background: rgba(110, 231, 183, 0.2); }
+      button.stop { background: rgba(255, 126, 95, 0.1); border-color: rgba(255, 126, 95, 0.5); color: #ffb3a0; }
+      button.stop:hover { background: rgba(255, 126, 95, 0.2); }
+      button.ghost { background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.2); color: inherit; }
+      .note { font-size: 0.85rem; color: rgba(230, 240, 232, 0.65); min-height: 1.2em; }
+      .kpis { display: flex; gap: 1.2rem; flex-wrap: wrap; margin-top: 0.4rem; }
+      .kpi b { display: block; font-size: 1.25rem; font-family: Consolas, monospace; color: #a7f3d0; }
+      .kpi span { font-size: 0.75rem; color: rgba(230, 240, 232, 0.55); }
+      .ledger { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+      .ledger td { padding: 0.3rem 0.4rem; border-bottom: 1px solid rgba(255, 255, 255, 0.07); }
+      .ledger td:last-child { text-align: right; font-family: Consolas, monospace; color: #a7f3d0; }
+      .me { color: #6ee7b7; font-weight: 700; }
+      .task { padding: 0.55rem 0.7rem; border: 1px solid rgba(255, 255, 255, 0.09); border-radius: 12px; margin-bottom: 0.45rem; }
+      .task b { color: #cfe8d8; }
+      .task small { color: rgba(230, 240, 232, 0.55); }
+      .bar { height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.09); margin-top: 0.35rem; overflow: hidden; }
+      .bar i { display: block; height: 100%; background: linear-gradient(90deg, #6ee7b7, #60a5fa); }
+      footer { margin-top: 1.8rem; font-size: 0.78rem; color: rgba(230, 240, 232, 0.4); text-align: center; }
+      a { color: #8ab4ff; }
+      .safe { font-size: 0.82rem; color: rgba(230, 240, 232, 0.6); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>⚙️ FleetGrid</h1>
+      <p class="tagline">
+        Donate your browser's idle cycles to the fleet's cause grid. Only fleet-published,
+        deterministic tasks run here — sandboxed in a Web Worker, nothing touches your files.
+      </p>
+
+      <div class="grid">
+        <section class="card">
+          <h2>Your node</h2>
+          <div id="join">
+            <p class="detail">Pick a callsign and join the grid.</p>
+            <div class="join">
+              <input id="name" maxlength="40" placeholder="e.g. hangar-bay-7" />
+              <button id="join-btn" type="button">Join the grid</button>
+            </div>
+            <p class="note" id="join-note">Your node lives in this browser — no account, no email.</p>
+          </div>
+          <div id="joined" hidden>
+            <p class="big" id="me-name">—</p>
+            <p class="detail">
+              <span id="me-id"></span> · <b id="me-credits" style="color:#a7f3d0">0</b> FleetCredits ·
+              <span id="me-chunks">0</span> chunks settled
+            </p>
+            <div class="join">
+              <button id="run-btn" type="button">▶ Start crunching</button>
+              <button id="forget-btn" type="button" class="ghost">Forget this node</button>
+            </div>
+            <p class="note" id="run-note"></p>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>How it works</h2>
+          <p class="detail safe">
+            Every task is <b>published by the fleet</b> (admin-only) and is pure arithmetic —
+            no downloads, no files, no network calls from task code. Each chunk is crunched by
+            <b>two independent nodes</b>; results must match byte-for-byte before anyone is
+            credited, and mismatches are requeued automatically. Your machine only ever sees math.
+          </p>
+          <p class="detail safe" style="margin-top: 0.5rem">
+            Tabs crunch while open. Close it anytime — your credits stay on the board.
+          </p>
+        </section>
+
+        <section class="card card-wide">
+          <h2>The fleet's causes</h2>
+          <div id="tasks"><p class="detail">Loading the cause board…</p></div>
+        </section>
+
+        <section class="card">
+          <h2>Fleet stats</h2>
+          <div class="kpis">
+            <div class="kpi"><b id="s-credits">0</b><span>credits awarded</span></div>
+            <div class="kpi"><b id="s-nodes">0</b><span>nodes enlisted</span></div>
+            <div class="kpi"><b id="s-settled">0</b><span>chunks settled</span></div>
+            <div class="kpi"><b id="s-ops">0</b><span>numbers crunched</span></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>Leaderboard</h2>
+          <table class="ledger"><tbody id="leaders"></tbody></table>
+        </section>
+
+        <section class="card card-wide">
+          <h2>Session ledger</h2>
+          <table class="ledger"><tbody id="log">
+            <tr><td class="detail">Settled chunks appear here as they're confirmed.</td></tr>
+          </tbody></table>
+        </section>
+      </div>
+
+      <footer>
+        The grid's brain is the <a href="https://github.com/jonnymexican/test/tree/main/bureau-vault">bureau-vault Worker</a>.
+        Part of <a href="/test/hub.html">Jon's Apps</a>.
+      </footer>
+    </main>
+
+    <script type="module">
+      import { totalWorked } from './grid-core.js';
+
+      var DEFAULT_API = 'https://bureau-vault.jonnymexican.workers.dev';
+      var STORE_KEY = 'fleetgrid:node';
+      var engine = null;
+      var sessionCredits = 0;
+
+      var $ = function (id) { return document.getElementById(id); };
+
+      // --- identity (nodeId + key live in localStorage) ---
+      function readNode() {
+        try { return JSON.parse(localStorage.getItem(STORE_KEY)) || null; } catch (e) { return null; }
+      }
+      function writeNode(n) {
+        try { localStorage.setItem(STORE_KEY, JSON.stringify(n)); } catch (e) { /* private mode */ }
+      }
+
+      function showJoined(n) {
+        $('join').hidden = true;
+        $('joined').hidden = false;
+        $('me-name').textContent = n.name;
+        $('me-id').textContent = n.nodeId;
+        refreshMe();
+      }
+
+      async function refreshMe() {
+        var n = readNode();
+        if (!n) return;
+        try {
+          var res = await fetch(n.api + '/fg/me', { headers: { 'x-fg-node': n.nodeId, 'x-fg-key': n.key } });
+          if (!res.ok) throw new Error('auth');
+          var me = await res.json();
+          $('me-credits').textContent = me.credits;
+          $('me-chunks').textContent = me.chunks;
+        } catch (e) {
+          $('me-credits').textContent = '?';
+        }
+      }
+
+      // --- engine control ---
+      function startEngine() {
+        var n = readNode();
+        if (!n || engine) return;
+        engine = new Worker(new URL('./engine.worker.js', import.meta.url), { type: 'module' });
+        engine.onmessage = function (ev) {
+          var m = ev.data || {};
+          if (m.type === 'status') {
+            $('run-note').textContent = m.note || '';
+          } else if (m.type === 'settled') {
+            sessionCredits += m.credits || 0;
+            addLedgerRow(m.taskId, m.chunkIndex, m.credits);
+            refreshMe();
+          }
+        };
+        engine.onerror = function (e) {
+          $('run-note').textContent = 'Engine error: ' + (e.message || 'unknown');
+        };
+        $('run-btn').textContent = '⏸ Pause';
+        $('run-btn').classList.add('stop');
+        engine.postMessage({ type: 'start', api: n.api, nodeId: n.nodeId, key: n.key });
+      }
+      function stopEngine() {
+        if (!engine) return;
+        engine.postMessage({ type: 'stop' });
+        engine.terminate();
+        engine = null;
+        $('run-btn').textContent = '▶ Start crunching';
+        $('run-btn').classList.remove('stop');
+      }
+
+      function addLedgerRow(taskId, chunkIndex, credits) {
+        var tb = $('log');
+        var tr = document.createElement('tr');
+        var td1 = document.createElement('td');
+        td1.textContent = taskId + ' · chunk ' + (chunkIndex + 1) + ' — confirmed by two nodes';
+        var td2 = document.createElement('td');
+        td2.textContent = '+' + (credits || 0);
+        tr.appendChild(td1); tr.appendChild(td2);
+        tb.insertBefore(tr, tb.firstChild);
+        while (tb.children.length > 12) tb.removeChild(tb.lastChild);
+      }
+
+      // --- board refresh (tasks, stats, leaderboard) ---
+      async function refreshBoard() {
+        try {
+          var api = (readNode() || {}).api || DEFAULT_API;
+          var [tasksRes, statsRes, leadRes] = await Promise.all([
+            fetch(api + '/fg/tasks').then(function (r) { return r.json(); }),
+            fetch(api + '/fg/stats').then(function (r) { return r.json(); }),
+            fetch(api + '/fg/leaderboard').then(function (r) { return r.json(); }),
+          ]);
+          var tasks = tasksRes.tasks || [];
+          var box = $('tasks');
+          box.textContent = '';
+          if (!tasks.length) {
+            box.innerHTML = '<p class="detail">No causes published yet — the fleet is drafting its first mission.</p>';
+          }
+          tasks.forEach(function (t) {
+            var d = document.createElement('div');
+            d.className = 'task';
+            var b = document.createElement('b');
+            b.textContent = t.status === 'live' ? t.title : t.title + ' (paused)';
+            var small = document.createElement('small');
+            small.textContent = ' — ' + t.description + ' ';
+            var prog = document.createElement('small');
+            prog.textContent = t.chunksSettled + '/' + t.chunkCount + ' chunks';
+            var bar = document.createElement('div');
+            bar.className = 'bar';
+            var fill = document.createElement('i');
+            fill.style.width = Math.round((100 * t.chunksSettled) / t.chunkCount) + '%';
+            bar.appendChild(fill);
+            d.appendChild(b); d.appendChild(small); d.appendChild(prog); d.appendChild(bar);
+            box.appendChild(d);
+          });
+          $('s-credits').textContent = statsRes.creditsAwarded || 0;
+          $('s-nodes').textContent = statsRes.nodes || 0;
+          $('s-settled').textContent = statsRes.chunksSettled || 0;
+          $('s-ops').textContent = totalWorked(tasks).toLocaleString();
+          var tb = $('leaders');
+          tb.textContent = '';
+          (leadRes.leaders || []).forEach(function (l, i) {
+            var tr = document.createElement('tr');
+            var td1 = document.createElement('td');
+            var n = readNode();
+            if (n && l.nodeId === n.nodeId) td1.className = 'me';
+            td1.textContent = (i + 1) + '. ' + l.name;
+            var td2 = document.createElement('td');
+            td2.textContent = l.credits + ' cr';
+            tr.appendChild(td1); tr.appendChild(td2);
+            tb.appendChild(tr);
+          });
+          if (!(leadRes.leaders || []).length) {
+            tb.innerHTML = '<tr><td class="detail">No crunchers yet — first node takes the crown.</td></tr>';
+          }
+        } catch (e) {
+          $('tasks').innerHTML = '<p class="detail">Could not reach the grid brain — retrying soon.</p>';
+        }
+      }
+
+      // --- join flow ---
+      $('join-btn').addEventListener('click', async function () {
+        var name = $('name').value.trim() || 'anon node';
+        $('join-btn').disabled = true;
+        $('join-note').textContent = 'Enlisting…';
+        try {
+          var res = await fetch(DEFAULT_API + '/fg/register', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ name: name }),
+          });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          var reg = await res.json();
+          var n = { api: DEFAULT_API, nodeId: reg.nodeId, key: reg.nodeKey, name: name };
+          writeNode(n);
+          showJoined(n);
+        } catch (e) {
+          $('join-note').textContent = 'Could not enlist (' + e.message + '). Is the vault awake?';
+        }
+        $('join-btn').disabled = false;
+      });
+
+      $('forget-btn').addEventListener('click', function () {
+        stopEngine();
+        try { localStorage.removeItem(STORE_KEY); } catch (e) {}
+        $('joined').hidden = true;
+        $('join').hidden = false;
+        $('join-note').textContent = 'Node forgotten. The ledger remembers your credits.';
+      });
+
+      $('run-btn').addEventListener('click', function () {
+        if (engine) stopEngine();
+        else startEngine();
+      });
+
+      // boot
+      var saved = readNode();
+      if (saved) showJoined(saved);
+      refreshBoard();
+      setInterval(refreshBoard, 15000);
+    </script>
+  </body>
+</html>
