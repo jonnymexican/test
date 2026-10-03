@@ -45,14 +45,46 @@
       button.primary:hover { filter: brightness(1.08); }
       button:disabled { opacity: 0.45; cursor: default; }
       #wall { position: relative; }
-      #wall canvas { width: 100%; height: auto; display: block; border-radius: 14px; box-shadow: 0 10px 40px rgba(0,0,0,0.45); }
+      #wall canvas { width: 100%; height: auto; display: block; border-radius: 14px; box-shadow: 0 10px 40px rgba(0,0,0,0.45); cursor: zoom-in; }
       .hint { font-size: 0.85rem; color: rgba(242, 236, 247, 0.6); }
-      .thumbs { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.8rem; }
-      .thumbs img {
+      .thumbs { display: flex; gap: 0.55rem; flex-wrap: wrap; margin-top: 0.8rem; }
+      .thumb-wrap { position: relative; display: inline-block; }
+      .thumb-wrap img {
         width: 3rem; height: 3rem; object-fit: cover; border-radius: 8px;
-        border: 1px solid rgba(255, 255, 255, 0.25); cursor: pointer;
+        border: 1px solid rgba(255, 255, 255, 0.25); cursor: zoom-in; display: block;
       }
-      .thumbs img:hover { border-color: #ff4d8d; }
+      .thumb-wrap img:hover { border-color: #ff4d8d; }
+      .thumb-x {
+        position: absolute; top: -7px; right: -7px; width: 1.2rem; height: 1.2rem;
+        border-radius: 50%; background: #ff4d8d; border: 2px solid #241233;
+        color: #fff; font-size: 0.6rem; line-height: 1; cursor: pointer; padding: 0;
+      }
+      .thumb-x:hover { background: #ff7eb1; }
+      /* The popup: fullscreen photo viewer */
+      .lb {
+        position: fixed; inset: 0; z-index: 90;
+        background: rgba(10, 6, 16, 0.94);
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 0.8rem; padding: 2.5rem 3.5rem; cursor: zoom-out;
+      }
+      .lb[hidden] { display: none; }
+      .lb img {
+        max-width: min(92vw, 1400px); max-height: 76vh; object-fit: contain;
+        border-radius: 10px; box-shadow: 0 12px 60px rgba(0, 0, 0, 0.6); cursor: default;
+      }
+      .lb-cap { color: rgba(242, 236, 247, 0.85); font-size: 0.95rem; margin: 0; }
+      .lb-count { color: rgba(242, 236, 247, 0.45); font-size: 0.8rem; margin: 0; }
+      .lb-btn {
+        position: fixed; background: rgba(255, 255, 255, 0.07);
+        border: 1px solid rgba(255, 255, 255, 0.18); color: #f2ecf7;
+        width: 2.6rem; height: 2.6rem; border-radius: 50%;
+        font-size: 1.2rem; cursor: pointer; line-height: 1; padding: 0;
+        transition: background 0.15s ease, border-color 0.15s ease;
+      }
+      .lb-btn:hover { background: rgba(255, 77, 141, 0.25); border-color: #ff4d8d; }
+      .lb-prev { left: 1rem; top: 50%; transform: translateY(-50%); }
+      .lb-next { right: 1rem; top: 50%; transform: translateY(-50%); }
+      .lb-close { right: 1rem; top: 1rem; }
       footer { margin-top: 2rem; font-size: 0.78rem; color: rgba(242, 236, 247, 0.4); text-align: center; }
       a { color: #f3c98b; }
     </style>
@@ -77,7 +109,7 @@
         <button id="shuffle-btn" type="button">🔀 Shuffle</button>
         <button id="save-btn" type="button" class="primary">⬇ Download poster</button>
       </div>
-      <p class="hint" id="hint" hidden>Click a thumbnail to banish it from the wall. Re-drop anytime for more.</p>
+      <p class="hint" id="hint" hidden>Click any thumbnail or collage tile to pop it up full-screen. ✕ banishes a pic. Re-drop anytime for more.</p>
       <div class="thumbs" id="thumbs"></div>
 
       <div id="wall" hidden>
@@ -91,34 +123,75 @@
       </footer>
     </main>
 
+    <div class="lb" id="lb" hidden role="dialog" aria-label="Photo popup">
+      <img id="lb-img" alt="" />
+      <p class="lb-cap" id="lb-cap"></p>
+      <p class="lb-count" id="lb-count"></p>
+      <button class="lb-btn lb-prev" id="lb-prev" type="button" aria-label="Previous photo">‹</button>
+      <button class="lb-btn lb-next" id="lb-next" type="button" aria-label="Next photo">›</button>
+      <button class="lb-btn lb-close" id="lb-close" type="button" aria-label="Close">✕</button>
+    </div>
+
     <script type="module">
       import { coverRect, gridLayout, mosaicLayout, warholTiles, PALETTES, shuffled } from './popartz.js';
 
-      var pics = [];        // { img, aspect }
+      var pics = [];        // { img, aspect, url }
       var style = 'mosaic';
       var paletteIdx = 0;
-      var seed = 1;
+      var lastLayout = [];  // [{ x, y, w, h, pi }] in canvas coords, for tile clicks
+      var lbIdx = 0;
 
       var $ = function (id) { return document.getElementById(id); };
       var drop = $('drop'), file = $('file'), wall = $('wall');
       var canvas = $('poster'), ctx = canvas.getContext('2d');
+      var lb = $('lb'), lbImg = $('lb-img'), lbCap = $('lb-cap'), lbCount = $('lb-count');
+
+      // --- the popup ---
+      function showLb(i) {
+        if (!pics.length) return;
+        lbIdx = (i + pics.length) % pics.length;
+        var p = pics[lbIdx];
+        lbImg.src = p.url;
+        lbImg.alt = 'Photo ' + (lbIdx + 1);
+        lbCap.textContent = (lbIdx + 1) + ' of ' + pics.length + ' — click ‹ › to browse, ✕ to close';
+        lbCount.textContent = Math.round(p.img.width) + ' × ' + Math.round(p.img.height) + ' px';
+        lb.hidden = false;
+        document.body.style.overflow = 'hidden';
+      }
+      function closeLb() {
+        lb.hidden = true;
+        lbImg.src = '';
+        document.body.style.overflow = '';
+      }
+      $('lb-prev').addEventListener('click', function (e) { e.stopPropagation(); showLb(lbIdx - 1); });
+      $('lb-next').addEventListener('click', function (e) { e.stopPropagation(); showLb(lbIdx + 1); });
+      $('lb-close').addEventListener('click', closeLb);
+      lb.addEventListener('click', function (e) { if (e.target === lb) closeLb(); });
+      document.addEventListener('keydown', function (e) {
+        if (lb.hidden) return;
+        if (e.key === 'Escape') closeLb();
+        else if (e.key === 'ArrowLeft') showLb(lbIdx - 1);
+        else if (e.key === 'ArrowRight') showLb(lbIdx + 1);
+      });
 
       // --- loading pics (fully local: createImageBitmap, no uploads) ---
       function loadFiles(files) {
+        var before = pics.length;
         var list = Array.prototype.slice.call(files || []).filter(function (f) {
           return /^image\//.test(f.type);
         });
         var jobs = list.map(function (f) {
           return createImageBitmap(f).then(function (img) {
-            pics.push({ img: img, aspect: img.width / img.height });
+            pics.push({ img: img, aspect: img.width / img.height, url: URL.createObjectURL(f) });
           }).catch(function () { /* skip undecodable */ });
         });
         Promise.all(jobs).then(function () {
-          if (pics.length) {
+          if (pics.length > before) {
             $('controls').hidden = false;
             $('hint').hidden = false;
             wall.hidden = false;
             render();
+            showLb(before); // the drop pops the new photo straight onto the screen
           }
         });
       }
@@ -133,30 +206,13 @@
       });
       drop.addEventListener('drop', function (e) { loadFiles(e.dataTransfer.files); });
 
-      // --- thumbnail strip (click = banish) ---
-      function renderThumbs() {
-        var box = $('thumbs');
-        box.textContent = '';
-        pics.forEach(function (p, i) {
-          var img = document.createElement('img');
-          img.src = p.img.width ? makeThumbSrc(p) : '';
-          img.title = 'Banish this pic';
-          img.addEventListener('click', function () {
-            URL.revokeObjectURL(img.src);
-            pics.splice(i, 1);
-            renderThumbs();
-            render();
-          });
-          box.appendChild(img);
-        });
-      }
+      // --- thumbnail strip (click = popup, ✕ = banish) ---
       var thumbUrls = new Map(); // ImageBitmap → dataURL (object keys need a Map)
       function makeThumbSrc(p) {
         if (!thumbUrls.has(p.img)) {
           var t = document.createElement('canvas');
           t.width = t.height = 96;
           var c2 = t.getContext('2d');
-          // Center-crop a square SOURCE region, then draw it to 96×96.
           var img = p.img;
           var side = Math.min(img.width, img.height);
           var sx = (img.width - side) / 2;
@@ -167,12 +223,37 @@
         return thumbUrls.get(p.img);
       }
 
+      function renderThumbs() {
+        var box = $('thumbs');
+        box.textContent = '';
+        pics.forEach(function (p, i) {
+          var wrap = document.createElement('span');
+          wrap.className = 'thumb-wrap';
+          var img = document.createElement('img');
+          img.src = makeThumbSrc(p);
+          img.title = 'Pop it up';
+          img.addEventListener('click', function () { showLb(i); });
+          var x = document.createElement('button');
+          x.type = 'button';
+          x.className = 'thumb-x';
+          x.textContent = '✕';
+          x.title = 'Banish this pic';
+          x.addEventListener('click', function (e) {
+            e.stopPropagation();
+            pics.splice(i, 1);
+            renderThumbs();
+            render();
+          });
+          wrap.appendChild(img);
+          wrap.appendChild(x);
+          box.appendChild(wrap);
+        });
+      }
+
       // --- the collage itself ---
       function paint(cell, p, filter) {
         ctx.save();
         if (filter) ctx.filter = filter;
-        // Clip to the cell, then draw the whole image scaled to cover it —
-        // the overflow is cropped by the clip, never spilling to neighbors.
         ctx.beginPath();
         ctx.rect(cell.x, cell.y, cell.w, cell.h);
         ctx.clip();
@@ -185,6 +266,7 @@
         if (!pics.length) return;
         var W = canvas.width, H = canvas.height, gap = 18;
         var pal = PALETTES[paletteIdx % PALETTES.length];
+        lastLayout = [];
 
         ctx.fillStyle = pal.bg;
         if (style !== 'mosaic' && canvas.height !== 1400) {
@@ -194,11 +276,9 @@
         ctx.fillRect(0, 0, W, H);
 
         if (style === 'mosaic') {
-          // Greedy rows, re-packed with a fresh shuffle each render.
-          var order = shuffled(pics).slice(0, 60); // cap: keep rows chunky
+          var order = shuffled(pics).slice(0, 60);
           var asp = order.map(function (p) { return Math.max(0.6, Math.min(2.2, p.aspect)); });
           var out = mosaicLayout(asp, W, 420, gap);
-          // Resize the canvas to hug the packed rows (no pink void), then repaint.
           var wantH = Math.round(Math.min(2400, out.height + 130));
           if (canvas.height !== wantH) {
             canvas.height = wantH;
@@ -209,9 +289,11 @@
           }
           order.forEach(function (p, i) {
             var cell = out.rects[i];
-            if (cell) paint(cell, p);
+            if (cell) {
+              paint(cell, p);
+              lastLayout.push({ x: cell.x, y: cell.y, w: cell.w, h: cell.h, pi: pics.indexOf(p) });
+            }
           });
-          // Signature bar
           ctx.fillStyle = pal.ink;
           ctx.fillRect(0, out.height + 14, W, 8);
           ctx.font = '700 54px "Segoe UI", sans-serif';
@@ -220,19 +302,24 @@
           var n = pics.length <= 4 ? pics.length : pics.length <= 9 ? 9 : 16;
           var cols = Math.ceil(Math.sqrt(n));
           var cells = gridLayout(Math.min(pics.length, 16), cols, W - 120, H - 120, gap);
+          var picked = shuffled(pics).slice(0, cells.length);
           ctx.save();
           ctx.translate(60, 60);
-          shuffled(pics).slice(0, cells.length).forEach(function (p, i) {
+          picked.forEach(function (p, i) {
             paint(cells[i], p);
+            lastLayout.push({ x: cells[i].x + 60, y: cells[i].y + 60, w: cells[i].w, h: cells[i].h, pi: pics.indexOf(p) });
           });
           ctx.restore();
         } else {
-          // Warhol: the first pic, tiled and hue-rolled, sized to fit the canvas.
           var wallSize = H - 200;
           var tiles = warholTiles(3, wallSize, wallSize, gap);
+          var ox = Math.round((W - wallSize) / 2);
           ctx.save();
-          ctx.translate(Math.round((W - wallSize) / 2), 70);
-          tiles.forEach(function (t) { paint(t, pics[0], t.filter); });
+          ctx.translate(ox, 70);
+          tiles.forEach(function (t) {
+            paint(t, pics[0], t.filter);
+            lastLayout.push({ x: t.x + ox, y: t.y + 70, w: t.w, h: t.h, pi: 0 });
+          });
           ctx.restore();
           ctx.fillStyle = pal.ink;
           ctx.font = '700 60px "Segoe UI", sans-serif';
@@ -240,6 +327,20 @@
         }
         renderThumbs();
       }
+
+      // Click a collage tile → pop that photo up.
+      canvas.addEventListener('click', function (e) {
+        var rect = canvas.getBoundingClientRect();
+        var x = (e.clientX - rect.left) * (canvas.width / rect.width);
+        var y = (e.clientY - rect.top) * (canvas.height / rect.height);
+        for (var i = lastLayout.length - 1; i >= 0; i--) {
+          var c = lastLayout[i];
+          if (x >= c.x && x < c.x + c.w && y >= c.y && y < c.y + c.h) {
+            showLb(c.pi);
+            return;
+          }
+        }
+      });
 
       // --- controls ---
       document.querySelectorAll('.seg').forEach(function (b) {
@@ -267,7 +368,12 @@
       });
 
       // Test/dev hook: lets tests and console pokes drive the wall.
-      window.__popartz = { loadFiles: loadFiles, render: render, state: function () { return { pics: pics.length, style: style, palette: PALETTES[paletteIdx].name }; } };
+      window.__popartz = {
+        loadFiles: loadFiles,
+        render: render,
+        showLb: showLb,
+        state: function () { return { pics: pics.length, style: style, palette: PALETTES[paletteIdx].name, lbOpen: !lb.hidden }; },
+      };
     </script>
   </body>
 </html>
