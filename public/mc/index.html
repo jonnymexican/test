@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#060a14" />
+    <meta name="description" content="Mission Control — one screen for the fleet: weather at the pad, recent tasks, the daily puzzle, the DJ vault, and a sky that's never the same twice." />
+    <title>Mission Control — Jon's Apps</title>
+    <style>
+      * { box-sizing: border-box; }
+      html { background: #060a14; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        background: radial-gradient(circle at 20% -10%, #14203a 0%, #0a0f1e 55%, #060a14 100%);
+        color: #e8e6f0;
+        padding: 2rem 1rem 4rem;
+      }
+      #sky { position: fixed; inset: 0; width: 100%; height: 100%; z-index: -1; display: block; }
+      main { max-width: 56rem; margin: 0 auto; }
+      .head { display: flex; align-items: flex-start; gap: 0.8rem; flex-wrap: wrap; }
+      h1 {
+        margin: 0 0 0.2rem;
+        font-size: 2rem;
+        letter-spacing: 0.02em;
+        background: linear-gradient(90deg, #6ee7b7, #60a5fa, #a78bfa);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .clock { margin: 0; font-family: Consolas, 'Courier New', monospace; color: rgba(232, 230, 240, 0.55); font-size: 0.9rem; }
+      .statusline { margin: 0.7rem 0 1.6rem; font-size: 0.9rem; color: rgba(232, 230, 240, 0.7); }
+      #ambient {
+        margin-left: auto; display: inline-flex; align-items: center; gap: 0.4rem;
+        background: rgba(110, 231, 183, 0.08); border: 1px solid rgba(110, 231, 183, 0.4);
+        color: #a7f3d0; border-radius: 999px; padding: 0.45rem 0.95rem;
+        font-size: 0.86rem; font-weight: 600; cursor: pointer; font-family: inherit;
+        transition: background 0.15s ease, border-color 0.15s ease;
+      }
+      #ambient:hover { background: rgba(110, 231, 183, 0.16); border-color: #6ee7b7; }
+      #ambient.on { border-color: #6ee7b7; box-shadow: 0 0 12px rgba(110, 231, 183, 0.25); }
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; }
+      @media (max-width: 46rem) { .grid { grid-template-columns: 1fr; } }
+      .card {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.13);
+        border-radius: 16px;
+        padding: 1rem 1.1rem 1.1rem;
+        backdrop-filter: blur(2px);
+      }
+      .card-wide { grid-column: 1 / -1; }
+      h2 { margin: 0 0 0.55rem; font-size: 1.02rem; display: flex; align-items: center; gap: 0.5rem; color: #cfe3ff; }
+      .big { margin: 0 0 0.35rem; font-size: 1.5rem; font-weight: 700; font-family: Consolas, 'Courier New', monospace; color: #fff; }
+      .detail { margin: 0 0 0.7rem; font-size: 0.9rem; color: rgba(232, 230, 240, 0.72); }
+      .detail b { color: #e8e6f0; }
+      .go { display: inline-block; margin-top: 0.15rem; font-size: 0.88rem; font-weight: 600; color: #8ab4ff; text-decoration: none; }
+      .go:hover { text-decoration: underline; }
+      .led { width: 9px; height: 9px; border-radius: 50%; flex: none; background: #6b7280; }
+      .led-green { background: #34d399; box-shadow: 0 0 8px rgba(52, 211, 153, 0.8); animation: pulse 2.2s ease-in-out infinite; }
+      .led-amber { background: #fbbf24; box-shadow: 0 0 8px rgba(251, 191, 36, 0.7); }
+      .led-wait { animation: blink 1.1s linear infinite; }
+      @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+      @keyframes blink { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+      .tb {
+        margin: 0.55rem 0 0.75rem; padding: 0.6rem 0.75rem;
+        border: 1px solid rgba(255, 179, 71, 0.4); border-radius: 12px;
+        background: rgba(255, 150, 40, 0.08); font-size: 0.88rem; color: #ffe1b0;
+      }
+      .tb b { color: #ffd28a; }
+      #task-form { display: flex; gap: 0.5rem; margin: 0 0 0.7rem; }
+      #task-input {
+        flex: 1; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.16);
+        color: #e8e6f0; border-radius: 10px; padding: 0.5rem 0.7rem; font-size: 0.9rem; font-family: inherit;
+      }
+      #task-input::placeholder { color: rgba(232, 230, 240, 0.4); }
+      #task-input:focus { outline: none; border-color: rgba(110, 231, 183, 0.55); }
+      #task-form button {
+        background: rgba(110, 231, 183, 0.12); border: 1px solid rgba(110, 231, 183, 0.45);
+        color: #a7f3d0; border-radius: 10px; padding: 0.5rem 0.9rem; font-size: 0.88rem;
+        font-weight: 600; cursor: pointer; font-family: inherit;
+      }
+      #task-form button:hover { background: rgba(110, 231, 183, 0.2); }
+      ul#task-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+      ul#task-list li { display: flex; align-items: center; gap: 0.55rem; font-size: 0.9rem; }
+      .task-dot {
+        width: 17px; height: 17px; border-radius: 50%; flex: none; cursor: pointer;
+        border: 1.5px solid rgba(232, 230, 240, 0.4); background: none; padding: 0; font-size: 0.72rem;
+        color: transparent; line-height: 1;
+      }
+      .task-dot.done { border-color: #34d399; background: rgba(52, 211, 153, 0.2); color: #34d399; }
+      .task-text { color: rgba(232, 230, 240, 0.9); }
+      li.done .task-text { color: rgba(232, 230, 240, 0.4); text-decoration: line-through; }
+      .task-x {
+        margin-left: auto; background: none; border: none; color: rgba(232, 230, 240, 0.35);
+        cursor: pointer; font-size: 0.95rem; padding: 0 0.2rem;
+      }
+      .task-x:hover { color: #ff7e5f; }
+      .task-empty { color: rgba(232, 230, 240, 0.4); font-size: 0.88rem; }
+      .ships { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 0.45rem; }
+      a.ship {
+        display: flex; align-items: center; gap: 0.6rem;
+        padding: 0.55rem 0.7rem; border-radius: 12px;
+        background: rgba(255, 255, 255, 0.035); border: 1px solid rgba(255, 255, 255, 0.09);
+        color: inherit; text-decoration: none; font-size: 0.9rem;
+        transition: border-color 0.15s ease, background 0.15s ease;
+      }
+      a.ship:hover { border-color: rgba(138, 180, 255, 0.5); background: rgba(138, 180, 255, 0.06); }
+      .ship-icon { font-size: 1.1rem; }
+      .ship-name { font-weight: 600; }
+      .ship-arrow { margin-left: auto; color: rgba(232, 230, 240, 0.35); }
+      footer { margin-top: 1.8rem; font-size: 0.78rem; color: rgba(232, 230, 240, 0.4); text-align: center; }
+      a { color: #8ab4ff; }
+    </style>
+  </head>
+  <body>
+    <canvas id="sky" aria-hidden="true"></canvas>
+    <main>
+      <div class="head">
+        <div>
+          <h1>🛰 Mission Control</h1>
+          <p class="clock" id="clock">—</p>
+        </div>
+        <button id="ambient" type="button">🔇 Ambient</button>
+      </div>
+      <p class="statusline"><span class="led led-wait" id="led-fleet"></span> <span id="fleet-text">Booting instruments…</span></p>
+
+      <div class="grid">
+        <section class="card">
+          <h2><span class="led led-wait" id="led-weather"></span> Conditions at the pad</h2>
+          <p class="big" id="weather-big">…</p>
+          <p class="detail" id="weather-detail">Fixing position…</p>
+        </section>
+
+        <section class="card">
+          <h2><span class="led led-wait" id="led-vault"></span> The DJ Vault</h2>
+          <p class="big" id="vault-big">…</p>
+          <p class="detail" id="vault-detail">Scanning the crates…</p>
+          <div class="tb" id="vault-throwback" hidden></div>
+          <a class="go" href="/test/djmixes/">Open the vault →</a>
+        </section>
+
+        <section class="card">
+          <h2><span class="led led-wait" id="led-puzzle"></span> Daily Puzzle League</h2>
+          <p class="big" id="puzzle-big">…</p>
+          <p class="detail" id="puzzle-detail">…</p>
+          <a class="go" href="/test/puzzleleague/">Enter the league →</a>
+        </section>
+
+        <section class="card">
+          <h2>Recent tasks</h2>
+          <form id="task-form">
+            <input id="task-input" maxlength="120" autocomplete="off" placeholder="Capture a task… (what's the expected outcome?)" />
+            <button type="submit">Add</button>
+          </form>
+          <ul id="task-list"></ul>
+        </section>
+
+        <section class="card card-wide">
+          <h2>The rest of the fleet</h2>
+          <div class="ships">
+            <a class="ship" href="/test/"><span class="ship-icon">✨</span><span class="ship-name">Get Inspired</span><span class="ship-arrow">→</span></a>
+            <a class="ship" href="/test/vicinitygo/"><span class="ship-icon">🧭</span><span class="ship-name">vicinityGo</span><span class="ship-arrow">→</span></a>
+            <a class="ship" href="https://jonnymexican.github.io/brocredit/"><span class="ship-icon">🎖️</span><span class="ship-name">FriendCredit™</span><span class="ship-arrow">→</span></a>
+            <a class="ship" href="https://jonnymexican.github.io/adhdTracker/"><span class="ship-icon">✅</span><span class="ship-name">adhdTracker</span><span class="ship-arrow">→</span></a>
+            <a class="ship" href="https://jonnymexican.github.io/ntlite/"><span class="ship-icon">🛠️</span><span class="ship-name">network-tools lite</span><span class="ship-arrow">→</span></a>
+            <a class="ship" href="https://jonnymexican.github.io/status/"><span class="ship-icon">🚦</span><span class="ship-name">fleet status</span><span class="ship-arrow">→</span></a>
+            <a class="ship" href="https://jonnymexican.github.io/links/"><span class="ship-icon">🔗</span><span class="ship-name">the apps</span><span class="ship-arrow">→</span></a>
+            <a class="ship" href="/test/hub.html"><span class="ship-icon">🚪</span><span class="ship-name">the hub</span><span class="ship-arrow">→</span></a>
+          </div>
+        </section>
+      </div>
+
+      <footer>Instrument panel for the fleet — tonight's sky is generated fresh every day. No accounts, no tracking. Part of <a href="/test/hub.html">Jon's Apps</a>.</footer>
+    </main>
+    <script type="module" src="./sky.js"></script>
+    <script type="module" src="./mc.js"></script>
+  </body>
+</html>
