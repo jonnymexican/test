@@ -32,3 +32,6 @@ yarn-error.log*
 /dj-mixes/
 /art/
 node_modules/
+
+# local preview scratch
+/.preview/

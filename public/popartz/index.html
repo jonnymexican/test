@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#1c1022" />
+    <meta name="description" content="pop-artz — turn your pictures into a pop-art collage poster, right in your browser." />
+    <title>pop-artz — collage your pics</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; min-height: 100vh;
+        font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        background: radial-gradient(circle at 15% -10%, #3a1c4f 0%, #241233 55%, #160a20 100%);
+        color: #f2ecf7; padding: 2rem 1rem 4rem;
+      }
+      main { max-width: 56rem; margin: 0 auto; }
+      h1 {
+        margin: 0 0 0.3rem; font-size: 2rem; letter-spacing: 0.01em;
+        background: linear-gradient(90deg, #ff4d8d, #ff9f1c, #2ec4b6, #7b2ff7);
+        -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+      }
+      .tagline { margin: 0 0 1.2rem; color: rgba(242, 236, 247, 0.65); font-size: 0.95rem; }
+      .drop {
+        border: 2px dashed rgba(255, 255, 255, 0.3); border-radius: 16px;
+        padding: 1.6rem 1rem; text-align: center; cursor: pointer;
+        transition: border-color 0.15s ease, background 0.15s ease;
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .drop:hover, .drop.over { border-color: #ff4d8d; background: rgba(255, 77, 141, 0.08); }
+      .drop b { color: #ffd6e8; }
+      .drop small { display: block; margin-top: 0.3rem; color: rgba(242, 236, 247, 0.55); }
+      .bar { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin: 1rem 0; }
+      .bar .grow { flex: 1; }
+      button {
+        background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.22);
+        color: inherit; border-radius: 999px; padding: 0.45rem 0.95rem; font-size: 0.88rem;
+        font-weight: 600; cursor: pointer; font-family: inherit;
+        transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+      }
+      button:hover { background: rgba(255, 255, 255, 0.14); }
+      button:active { transform: scale(0.97); }
+      button.seg.on { background: #ff4d8d; border-color: #ff4d8d; color: #fff; }
+      button.primary { background: #2ec4b6; border-color: #2ec4b6; color: #06251f; }
+      button.primary:hover { filter: brightness(1.08); }
+      button:disabled { opacity: 0.45; cursor: default; }
+      #wall { position: relative; }
+      #wall canvas { width: 100%; height: auto; display: block; border-radius: 14px; box-shadow: 0 10px 40px rgba(0,0,0,0.45); }
+      .hint { font-size: 0.85rem; color: rgba(242, 236, 247, 0.6); }
+      .thumbs { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.8rem; }
+      .thumbs img {
+        width: 3rem; height: 3rem; object-fit: cover; border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.25); cursor: pointer;
+      }
+      .thumbs img:hover { border-color: #ff4d8d; }
+      footer { margin-top: 2rem; font-size: 0.78rem; color: rgba(242, 236, 247, 0.4); text-align: center; }
+      a { color: #f3c98b; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>pop-artz</h1>
+      <p class="tagline">Drop your pics — get a pop-art collage poster. Everything happens in your browser; images never leave your device.</p>
+
+      <div class="drop" id="drop">
+        <b>🖼 Drop pictures here</b> or click to browse
+        <small>JPG / PNG / WebP · as many as you like · nothing is uploaded anywhere</small>
+        <input type="file" id="file" accept="image/*" multiple hidden />
+      </div>
+
+      <div class="bar" id="controls" hidden>
+        <button class="seg on" data-style="mosaic" type="button">Mosaic</button>
+        <button class="seg" data-style="grid" type="button">Grid</button>
+        <button class="seg" data-style="warhol" type="button">Warhol</button>
+        <span class="grow"></span>
+        <button id="palette-btn" type="button" title="Pop palette">🎨 <span id="palette-name">Bubblegum</span></button>
+        <button id="shuffle-btn" type="button">🔀 Shuffle</button>
+        <button id="save-btn" type="button" class="primary">⬇ Download poster</button>
+      </div>
+      <p class="hint" id="hint" hidden>Click a thumbnail to banish it from the wall. Re-drop anytime for more.</p>
+      <div class="thumbs" id="thumbs"></div>
+
+      <div id="wall" hidden>
+        <canvas id="poster" width="2000" height="1400"></canvas>
+      </div>
+
+      <footer>
+        Your pics stay local — the poster is drawn by your own browser. Hang a finished
+        piece in <a href="/test/gallery/">The Gallery</a> with the art uploader.
+        Part of <a href="/test/hub.html">Jon's Apps</a>.
+      </footer>
+    </main>
+
+    <script type="module">
+      import { coverRect, gridLayout, mosaicLayout, warholTiles, PALETTES, shuffled } from './popartz.js';
+
+      var pics = [];        // { img, aspect }
+      var style = 'mosaic';
+      var paletteIdx = 0;
+      var seed = 1;
+
+      var $ = function (id) { return document.getElementById(id); };
+      var drop = $('drop'), file = $('file'), wall = $('wall');
+      var canvas = $('poster'), ctx = canvas.getContext('2d');
+
+      // --- loading pics (fully local: createImageBitmap, no uploads) ---
+      function loadFiles(files) {
+        var list = Array.prototype.slice.call(files || []).filter(function (f) {
+          return /^image\//.test(f.type);
+        });
+        var jobs = list.map(function (f) {
+          return createImageBitmap(f).then(function (img) {
+            pics.push({ img: img, aspect: img.width / img.height });
+          }).catch(function () { /* skip undecodable */ });
+        });
+        Promise.all(jobs).then(function () {
+          if (pics.length) {
+            $('controls').hidden = false;
+            $('hint').hidden = false;
+            wall.hidden = false;
+            render();
+          }
+        });
+      }
+
+      drop.addEventListener('click', function () { file.click(); });
+      file.addEventListener('change', function () { loadFiles(file.files); });
+      ['dragover', 'dragenter'].forEach(function (ev) {
+        drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('over'); });
+      });
+      ['dragleave', 'drop'].forEach(function (ev) {
+        drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('over'); });
+      });
+      drop.addEventListener('drop', function (e) { loadFiles(e.dataTransfer.files); });
+
+      // --- thumbnail strip (click = banish) ---
+      function renderThumbs() {
+        var box = $('thumbs');
+        box.textContent = '';
+        pics.forEach(function (p, i) {
+          var img = document.createElement('img');
+          img.src = p.img.width ? makeThumbSrc(p) : '';
+          img.title = 'Banish this pic';
+          img.addEventListener('click', function () {
+            URL.revokeObjectURL(img.src);
+            pics.splice(i, 1);
+            renderThumbs();
+            render();
+          });
+          box.appendChild(img);
+        });
+      }
+      var thumbUrls = new Map(); // ImageBitmap → dataURL (object keys need a Map)
+      function makeThumbSrc(p) {
+        if (!thumbUrls.has(p.img)) {
+          var t = document.createElement('canvas');
+          t.width = t.height = 96;
+          var c2 = t.getContext('2d');
+          // Center-crop a square SOURCE region, then draw it to 96×96.
+          var img = p.img;
+          var side = Math.min(img.width, img.height);
+          var sx = (img.width - side) / 2;
+          var sy = (img.height - side) / 2;
+          c2.drawImage(img, sx, sy, side, side, 0, 0, 96, 96);
+          thumbUrls.set(p.img, t.toDataURL('image/jpeg', 0.7));
+        }
+        return thumbUrls.get(p.img);
+      }
+
+      // --- the collage itself ---
+      function paint(cell, p, filter) {
+        ctx.save();
+        if (filter) ctx.filter = filter;
+        // Clip to the cell, then draw the whole image scaled to cover it —
+        // the overflow is cropped by the clip, never spilling to neighbors.
+        ctx.beginPath();
+        ctx.rect(cell.x, cell.y, cell.w, cell.h);
+        ctx.clip();
+        var r = coverRect(cell, p.aspect);
+        ctx.drawImage(p.img, r.x, r.y, r.w, r.h);
+        ctx.restore();
+      }
+
+      function render() {
+        if (!pics.length) return;
+        var W = canvas.width, H = canvas.height, gap = 18;
+        var pal = PALETTES[paletteIdx % PALETTES.length];
+
+        ctx.fillStyle = pal.bg;
+        if (style !== 'mosaic' && canvas.height !== 1400) {
+          canvas.height = 1400; // undo the mosaic auto-height
+          H = canvas.height;
+        }
+        ctx.fillRect(0, 0, W, H);
+
+        if (style === 'mosaic') {
+          // Greedy rows, re-packed with a fresh shuffle each render.
+          var order = shuffled(pics).slice(0, 60); // cap: keep rows chunky
+          var asp = order.map(function (p) { return Math.max(0.6, Math.min(2.2, p.aspect)); });
+          var out = mosaicLayout(asp, W, 420, gap);
+          // Resize the canvas to hug the packed rows (no pink void), then repaint.
+          var wantH = Math.round(Math.min(2400, out.height + 130));
+          if (canvas.height !== wantH) {
+            canvas.height = wantH;
+            H = canvas.height;
+            ctx.fillStyle = pal.bg;
+            ctx.fillRect(0, 0, W, H);
+            out = mosaicLayout(asp, W, 420, gap);
+          }
+          order.forEach(function (p, i) {
+            var cell = out.rects[i];
+            if (cell) paint(cell, p);
+          });
+          // Signature bar
+          ctx.fillStyle = pal.ink;
+          ctx.fillRect(0, out.height + 14, W, 8);
+          ctx.font = '700 54px "Segoe UI", sans-serif';
+          ctx.fillText('pop-artz', 24, Math.min(H - 24, out.height + 96));
+        } else if (style === 'grid') {
+          var n = pics.length <= 4 ? pics.length : pics.length <= 9 ? 9 : 16;
+          var cols = Math.ceil(Math.sqrt(n));
+          var cells = gridLayout(Math.min(pics.length, 16), cols, W - 120, H - 120, gap);
+          ctx.save();
+          ctx.translate(60, 60);
+          shuffled(pics).slice(0, cells.length).forEach(function (p, i) {
+            paint(cells[i], p);
+          });
+          ctx.restore();
+        } else {
+          // Warhol: the first pic, tiled and hue-rolled, sized to fit the canvas.
+          var wallSize = H - 200;
+          var tiles = warholTiles(3, wallSize, wallSize, gap);
+          ctx.save();
+          ctx.translate(Math.round((W - wallSize) / 2), 70);
+          tiles.forEach(function (t) { paint(t, pics[0], t.filter); });
+          ctx.restore();
+          ctx.fillStyle = pal.ink;
+          ctx.font = '700 60px "Segoe UI", sans-serif';
+          ctx.fillText('pop-artz', 60, H - 60);
+        }
+        renderThumbs();
+      }
+
+      // --- controls ---
+      document.querySelectorAll('.seg').forEach(function (b) {
+        b.addEventListener('click', function () {
+          document.querySelectorAll('.seg').forEach(function (x) { x.classList.remove('on'); });
+          b.classList.add('on');
+          style = b.dataset.style;
+          render();
+        });
+      });
+      $('palette-btn').addEventListener('click', function () {
+        paletteIdx = (paletteIdx + 1) % PALETTES.length;
+        $('palette-name').textContent = PALETTES[paletteIdx].name;
+        render();
+      });
+      $('shuffle-btn').addEventListener('click', function () { render(); });
+      $('save-btn').addEventListener('click', function () {
+        canvas.toBlob(function (blob) {
+          var a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = 'pop-artz-' + style + '.png';
+          a.click();
+          setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+        }, 'image/png');
+      });
+
+      // Test/dev hook: lets tests and console pokes drive the wall.
+      window.__popartz = { loadFiles: loadFiles, render: render, state: function () { return { pics: pics.length, style: style, palette: PALETTES[paletteIdx].name }; } };
+    </script>
+  </body>
+</html>
