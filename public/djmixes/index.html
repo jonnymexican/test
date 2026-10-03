@@ -71,6 +71,20 @@
         font-size: 0.8rem; cursor: pointer; font-family: inherit;
       }
       .tb-exit:hover { border-color: #ffd28a; }
+      .tracklist { margin: 0.55rem 0 0; font-size: 0.85rem; }
+      .tracklist summary {
+        cursor: pointer; font-weight: 600;
+        color: rgba(232, 230, 240, 0.6); width: fit-content;
+      }
+      .tracklist summary:hover { color: #f8b500; }
+      .tracklist pre {
+        margin: 0.5rem 0 0; padding: 0.7rem 0.9rem;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        white-space: pre-wrap; font-family: inherit; line-height: 1.55;
+        color: rgba(232, 230, 240, 0.78);
+      }
       /* Retro mode — the whole page time-travels with the music. */
       body.throwback { background: radial-gradient(circle at 50% -10%, #4a2c10 0%, #241404 55%, #140b03 100%); }
       body.throwback h1 {
@@ -215,6 +229,20 @@
               h.className = 'group-title';
               h.textContent = rel.name || rel.tag_name;
               group.appendChild(h);
+              // A release body that says something real becomes the tracklist.
+              var defaultBody = 'DJ mixes — ' + (rel.name || rel.tag_name);
+              var body = (rel.body || '').trim();
+              if (body && body !== defaultBody) {
+                var det = document.createElement('details');
+                det.className = 'tracklist';
+                var sum = document.createElement('summary');
+                sum.textContent = '📋 Tracklist';
+                var pre = document.createElement('pre');
+                pre.textContent = body; // textContent — bodies are never trusted HTML
+                det.appendChild(sum);
+                det.appendChild(pre);
+                group.appendChild(det);
+              }
               var ul = document.createElement('ul');
               ul.className = 'mixes';
               assets
