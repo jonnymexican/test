@@ -88,9 +88,9 @@
   }
 
   var last = 0;
-  function frame(ts) {
+  function draw(ts) {
     var t = ts / 1000;
-    var dt = Math.min(t - last, 0.05);
+    var dt = Math.min(Math.max(t - last, 0), 0.05);
     last = t;
 
     ctx.clearRect(0, 0, W, H);
@@ -119,7 +119,9 @@
     }
     ctx.globalAlpha = 1;
 
-    if (Math.random() < 0.0022 && meteors.length < 2) spawnMeteor();
+    // Spawn rate scales with real elapsed time, so hidden-tab slow ticks
+    // don't make meteors rarer (or a fast display, more common).
+    if (Math.random() < 0.13 * dt && meteors.length < 2) spawnMeteor();
     for (var m = meteors.length - 1; m >= 0; m--) {
       var mt = meteors[m];
       mt.life += dt;
@@ -138,22 +140,34 @@
       ctx.stroke();
     }
 
-    if (!document.hidden) requestAnimationFrame(frame);
   }
 
-  document.addEventListener('visibilitychange', function () {
-    if (!document.hidden && !reduceMotion) requestAnimationFrame(frame);
-  });
-  window.addEventListener('resize', function () { resize(); build(); if (reduceMotion) drawStatic(); });
+  // Background tabs never fire rAF, which would leave the sky blank —
+  // so: paint one frame synchronously at boot, then keep ticking with a
+  // slow timer while hidden and rAF while visible. One loop only, no
+  // matter how many times the tab flips visibility.
+  var ticking = false;
+  function schedule() {
+    if (ticking) return;
+    ticking = true;
+    if (document.hidden) {
+      setTimeout(function () { ticking = false; draw(performance.now()); schedule(); }, 220);
+    } else {
+      requestAnimationFrame(function (ts) { ticking = false; draw(ts); schedule(); });
+    }
+  }
+
+  document.addEventListener('visibilitychange', schedule);
+  window.addEventListener('resize', function () { resize(); build(); draw(performance.now()); });
 
   function drawStatic() {
     resize();
     last = 0;
-    frame(0);
+    draw(0);
   }
 
   resize();
   build();
   if (reduceMotion) drawStatic();
-  else requestAnimationFrame(frame);
+  else { draw(performance.now()); schedule(); }
 })();
