@@ -47,6 +47,41 @@
       .mix-icon { font-size: 1.3rem; width: 1.8rem; text-align: center; flex: none; }
       .mix-name { font-weight: 600; overflow-wrap: anywhere; }
       .mix-meta { margin-left: auto; color: rgba(232, 230, 240, 0.5); font-size: 0.8rem; flex: none; }
+      .tb-btn {
+        display: inline-flex; align-items: center; gap: 0.45rem;
+        background: rgba(255, 179, 71, 0.1);
+        border: 1px solid rgba(255, 179, 71, 0.55);
+        color: #ffd28a; border-radius: 999px;
+        padding: 0.5rem 1.1rem; font-size: 0.95rem; font-weight: 600;
+        cursor: pointer; font-family: inherit;
+        transition: background 0.15s ease, border-color 0.15s ease;
+      }
+      .tb-btn:hover { background: rgba(255, 179, 71, 0.2); border-color: #ffb347; }
+      .tb-banner {
+        display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap;
+        background: rgba(255, 150, 40, 0.1);
+        border: 1px solid rgba(255, 179, 71, 0.45);
+        border-radius: 14px; padding: 0.7rem 1rem; margin: 0 0 1rem;
+        font-size: 0.92rem; color: #ffe1b0;
+      }
+      .tb-banner[hidden] { display: none; }
+      .tb-exit {
+        margin-left: auto; background: none; border: 1px solid rgba(255, 210, 138, 0.4);
+        color: #ffd28a; border-radius: 999px; padding: 0.25rem 0.75rem;
+        font-size: 0.8rem; cursor: pointer; font-family: inherit;
+      }
+      .tb-exit:hover { border-color: #ffd28a; }
+      /* Retro mode — the whole page time-travels with the music. */
+      body.throwback { background: radial-gradient(circle at 50% -10%, #4a2c10 0%, #241404 55%, #140b03 100%); }
+      body.throwback h1 {
+        background: linear-gradient(90deg, #ffb347, #ff5e62, #ffb347);
+        -webkit-background-clip: text; background-clip: text;
+        filter: drop-shadow(0 0 10px rgba(255, 150, 40, 0.4));
+      }
+      body.throwback::after {
+        content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 60;
+        background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.13) 0px, rgba(0, 0, 0, 0.13) 1px, transparent 1px, transparent 3px);
+      }
       .player-dock {
         position: fixed; left: 0; right: 0; bottom: 0;
         background: rgba(19, 18, 38, 0.96);
@@ -54,6 +89,7 @@
         padding: 0.7rem 1rem 0.9rem;
         backdrop-filter: blur(6px);
       }
+      body.throwback .player-dock { background: rgba(30, 18, 5, 0.96); border-top-color: rgba(255, 179, 71, 0.35); }
       .player-inner { max-width: 44rem; margin: 0 auto; }
       .now-playing { font-size: 0.88rem; margin: 0 0 0.45rem; color: rgba(232, 230, 240, 0.85);
         overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -66,7 +102,12 @@
     <main>
       <h1>The DJ Vault</h1>
       <p class="tagline">Old mixes, straight from the archive. Pick one and press play.</p>
+      <button class="tb-btn" id="throwback-btn" hidden>📻 Throwback Radio</button>
       <p class="status" id="status">Loading the crates…</p>
+      <div class="tb-banner" id="tb-banner" hidden>
+        <span id="tb-text"></span>
+        <button class="tb-exit" id="tb-exit">Back to today</button>
+      </div>
       <div id="mixes"></div>
       <footer>
         Audio lives in the
@@ -82,7 +123,16 @@
       </div>
     </div>
 
-    <script>
+    <script type="module">
+      import {
+        extractDate,
+        isAudioName,
+        pickThrowback,
+        prettyName,
+        formatDate,
+        yearsAgoText,
+      } from './throwback.js';
+
       (function () {
         var API = 'https://api.github.com/repos/jonnymexican/dj-mixes/releases?per_page=100';
         var statusEl = document.getElementById('status');
@@ -90,10 +140,15 @@
         var dock = document.getElementById('dock');
         var audio = document.getElementById('audio');
         var nowEl = document.getElementById('now-playing');
+        var tbBtn = document.getElementById('throwback-btn');
+        var tbBanner = document.getElementById('tb-banner');
+        var tbText = document.getElementById('tb-text');
         var currentLink = null;
+        var releases = [];
+        var linkFor = {};
 
-        function mb(bytes) {
-          return Math.round(bytes / 1000000) + ' MB';
+        function fmtSize(bytes) {
+          return bytes >= 1e9 ? (bytes / 1e9).toFixed(2) + ' GB' : Math.round(bytes / 1e6) + ' MB';
         }
 
         function extLabel(name) {
@@ -111,17 +166,47 @@
           dock.hidden = false;
         }
 
+        function hasDatedMix() {
+          return releases.some(function (rel) {
+            return (rel.assets || []).some(function (a) {
+              return isAudioName(a.name) && extractDate(a.name) !== null;
+            });
+          });
+        }
+
+        function goThrowback() {
+          var pick = pickThrowback(releases, new Date());
+          if (!pick) return;
+          document.body.classList.add('throwback');
+          tbText.textContent =
+            '📻 Throwing it back to ' + formatDate(pick.at) +
+            (pick.isExactDate
+              ? ' — ' + yearsAgoText(pick.at, new Date())
+              : ' — the closest mix to today’s date');
+          tbBanner.hidden = false;
+          var link = linkFor[pick.asset.browser_download_url];
+          if (link) {
+            play(link, prettyName(pick.asset.name), pick.asset.browser_download_url);
+            link.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
+
+        tbBtn.addEventListener('click', goThrowback);
+        document.getElementById('tb-exit').addEventListener('click', function () {
+          document.body.classList.remove('throwback');
+          tbBanner.hidden = true;
+        });
+
         fetch(API)
           .then(function (r) {
             if (!r.ok) throw new Error('GitHub API said ' + r.status);
             return r.json();
           })
-          .then(function (releases) {
+          .then(function (list) {
+            releases = list || [];
             var total = 0;
             releases.forEach(function (rel) {
-              var assets = (rel.assets || []).filter(function (a) {
-                return /\.(mp3|wav|flac|m4a|ogg|aiff|aif)$/i.test(a.name);
-              });
+              var assets = (rel.assets || []).filter(function (a) { return isAudioName(a.name); });
               if (!assets.length) return;
               total += assets.length;
               var group = document.createElement('section');
@@ -144,17 +229,18 @@
                   icon.textContent = '🎧';
                   var name = document.createElement('span');
                   name.className = 'mix-name';
-                  name.textContent = asset.name.replace(/\.[a-z0-9]+$/i, '');
+                  name.textContent = prettyName(asset.name);
                   var meta = document.createElement('span');
                   meta.className = 'mix-meta';
-                  meta.textContent = extLabel(asset.name) + ' · ' + mb(asset.size);
+                  meta.textContent = extLabel(asset.name) + ' · ' + fmtSize(asset.size);
                   a.appendChild(icon);
                   a.appendChild(name);
                   a.appendChild(meta);
                   a.addEventListener('click', function (e) {
                     e.preventDefault();
-                    play(a, asset.name, asset.browser_download_url);
+                    play(a, prettyName(asset.name), asset.browser_download_url);
                   });
+                  linkFor[asset.browser_download_url] = a;
                   li.appendChild(a);
                   ul.appendChild(li);
                 });
@@ -166,6 +252,7 @@
             } else {
               statusEl.textContent = total + ' mix' + (total === 1 ? '' : 'es') + ' in the vault.';
             }
+            tbBtn.hidden = !hasDatedMix();
           })
           .catch(function (err) {
             statusEl.textContent = 'Could not load the archive (' + err.message + '). Try refreshing.';
