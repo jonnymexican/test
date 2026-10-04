@@ -1,8 +1,10 @@
 /**
  * Mission Control instruments: clock, weather at the pad, recent tasks,
- * ambient drift, DJ Vault status and the Daily Puzzle League.
+ * ambient drift, DJ Vault status, the Daily Puzzle League, live
+ * FriendCredit™ bureau standings and the adhdTracker streak.
  */
 import { pickThrowback, prettyName, formatDate, yearsAgoText, isAudioName } from '../djmixes/throwback.js';
+import { scoreFriends, computeAdhdStats, mergeById, todayStr } from './summaries.js';
 
 (function () {
   var VAULT_API = 'https://api.github.com/repos/jonnymexican/dj-mixes/releases?per_page=100';
@@ -35,6 +37,39 @@ import { pickThrowback, prettyName, formatDate, yearsAgoText, isAudioName } from
     } catch (e) {
       /* private mode — the console just won't remember things */
     }
+  }
+
+  function esc(s) {
+    return String(s).replace(/[<>&]/g, '');
+  }
+
+  /** Vault settings both fleet apps persist on this shared origin. */
+  function readVaultSettings(key) {
+    var s = readJSON(key);
+    if (!s || !/^https:\/\//.test(s.url || '') || !s.code) return null;
+    return s;
+  }
+
+  /** Read a bureau from the shared vault; falls back to this device's data. */
+  function fetchBureau(settingsKey, localLists, remoteKey, then) {
+    var settings = readVaultSettings(settingsKey);
+    if (!settings) {
+      then(localLists, '');
+      return;
+    }
+    fetch(settings.url + '/bureau/' + encodeURIComponent(settings.code), {
+      headers: { 'x-vault-code': settings.code },
+    })
+      .then(function (r) {
+        if (!r.ok) throw new Error('vault said ' + r.status);
+        return r.json();
+      })
+      .then(function (state) {
+        then(localLists, state, 'live from the shared vault');
+      })
+      .catch(function () {
+        then(localLists, null, 'vault unreachable — showing this device');
+      });
   }
 
   // ---------------- Weather at the pad ----------------
@@ -299,6 +334,116 @@ import { pickThrowback, prettyName, formatDate, yearsAgoText, isAudioName } from
       'Enlisted as <b>' + String(me.name).replace(/[<>&]/g, '') + '</b> · streak <b>' + streak + '</b> day(s). ' + todayText;
     led.className = 'led ' + (today && today.solvedAt ? 'led-green' : 'led-amber');
   })();
+
+  // ---------------- FriendCredit™ Bureau (shared vault, live) ----------------
+  var ledFC = document.getElementById('led-fc');
+
+  function fcRender(data, note) {
+    var friends = data.friends;
+    var txns = data.txns;
+    var roster = document.getElementById('fc-roster');
+    var big = document.getElementById('fc-big');
+    var detail = document.getElementById('fc-detail');
+    roster.innerHTML = '';
+    if (!friends.length) {
+      big.textContent = 'no names on file';
+      detail.textContent = 'The bureau is empty — open FriendCredit to add the first friend.';
+      ledFC.className = 'led led-amber';
+      return;
+    }
+    var scored = scoreFriends(friends, txns);
+    var filed = txns.length;
+    big.textContent =
+      friends.length + ' friend' + (friends.length === 1 ? '' : 's') + ' · ' +
+      filed + ' filing' + (filed === 1 ? '' : 's');
+    var top = scored[0];
+    detail.innerHTML =
+      top.rank.emoji + ' <b>' + esc(top.friend.name) + '</b> leads at <b>' + top.score + '</b>' +
+      (note ? ' · ' + note : '');
+    scored.slice(0, 3).forEach(function (s) {
+      var li = document.createElement('li');
+      var emoji = document.createElement('span');
+      emoji.textContent = s.rank.emoji;
+      var name = document.createElement('span');
+      name.textContent = s.friend.name;
+      var score = document.createElement('span');
+      score.className = 'r-score';
+      score.textContent = s.score + ' · ' + s.rank.title;
+      li.appendChild(emoji);
+      li.appendChild(name);
+      li.appendChild(score);
+      roster.appendChild(li);
+    });
+    ledFC.className = 'led led-green';
+  }
+
+  function fcLoad() {
+    var friends = readJSON('friendcredit:friends');
+    var txns = readJSON('friendcredit:transactions');
+    var local = { friends: Array.isArray(friends) ? friends : [], txns: Array.isArray(txns) ? txns : [] };
+    fetchBureau('friendcredit:vault-settings', local, null, function (base, state, note) {
+      if (!state) {
+        fcRender({ friends: base.friends, txns: base.txns }, note);
+        return;
+      }
+      fcRender(
+        {
+          friends: mergeById(base.friends, state.friends, state.tombstones),
+          txns: mergeById(base.txns, state.transactions, state.tombstones),
+        },
+        note
+      );
+    });
+  }
+
+  // ---------------- adhdTracker streak (personal vault, live) ----------------
+  var ledADHD = document.getElementById('led-adhd');
+
+  function adhdRender(tasks, note) {
+    var big = document.getElementById('adhd-big');
+    var detail = document.getElementById('adhd-detail');
+    if (!tasks.length) {
+      big.textContent = 'no log';
+      detail.textContent = 'No tasks on record — open the tracker to plan the day.';
+      ledADHD.className = 'led led-amber';
+      return;
+    }
+    var stats = computeAdhdStats(tasks);
+    var today = todayStr();
+    var doneToday = tasks.filter(function (t) { return t.done && t.completedOn === today; }).length;
+    var openToday = tasks.filter(function (t) { return !t.done && t.date === today; }).length;
+    var overdue = tasks.filter(function (t) { return !t.done && t.date && t.date < today; }).length;
+    big.textContent = '🔥 ' + stats.streak + ' day streak · ' + stats.totalCompleted + ' done';
+    detail.innerHTML =
+      'Expectations met <b>' + (stats.expectationRate === null ? '—' : stats.expectationRate + '%') + '</b>' +
+      ' · today: <b>' + doneToday + '</b> done / ' + openToday + ' open' +
+      (overdue ? ' · <b>' + overdue + '</b> overdue' : '') +
+      (note ? ' · ' + note : '');
+    ledADHD.className = 'led led-green';
+  }
+
+  function adhdLoad() {
+    var tasks = readJSON('adhdtracker:tasks');
+    var tombs = readJSON('adhdtracker:tombs');
+    var local = { tasks: Array.isArray(tasks) ? tasks : [], tombs: Array.isArray(tombs) ? tombs : [] };
+    fetchBureau('adhdtracker:vault-settings', local, null, function (base, state, note) {
+      if (!state) {
+        adhdRender(base.tasks, note);
+        return;
+      }
+      adhdRender(mergeById(base.tasks, state.tasks, (state.tombstones || []).concat(base.tombs)), note);
+    });
+  }
+
+  fcLoad();
+  adhdLoad();
+  setInterval(function () { fcLoad(); adhdLoad(); }, 60000);
+  // Fleet apps share this origin — react instantly when one writes from another tab.
+  window.addEventListener('storage', function (e) {
+    if (!e.key) return;
+    if (e.key.indexOf('friendcredit:') === 0) fcLoad();
+    if (e.key.indexOf('adhdtracker:') === 0) adhdLoad();
+  });
 
   // ---------------- Fleet line ----------------
   fleetLed.className = 'led led-green';

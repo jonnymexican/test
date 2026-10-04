@@ -97,6 +97,9 @@
       }
       .task-x:hover { color: #ff7e5f; }
       .task-empty { color: rgba(232, 230, 240, 0.4); font-size: 0.88rem; }
+      ul.roster { list-style: none; margin: 0 0 0.55rem; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+      ul.roster li { display: flex; align-items: baseline; gap: 0.45rem; font-size: 0.88rem; color: rgba(232, 230, 240, 0.85); }
+      .r-score { margin-left: auto; font-family: Consolas, 'Courier New', monospace; color: #cfe3ff; font-size: 0.82rem; }
       .ships { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 0.45rem; }
       a.ship {
         display: flex; align-items: center; gap: 0.6rem;
@@ -145,6 +148,21 @@
           <p class="big" id="puzzle-big">…</p>
           <p class="detail" id="puzzle-detail">…</p>
           <a class="go" href="/test/puzzleleague/">Enter the league →</a>
+        </section>
+
+        <section class="card">
+          <h2><span class="led led-wait" id="led-fc"></span> FriendCredit™ Bureau</h2>
+          <p class="big" id="fc-big">…</p>
+          <p class="detail" id="fc-detail">Summoning the tribunal…</p>
+          <ul class="roster" id="fc-roster"></ul>
+          <a class="go" href="https://jonnymexican.github.io/brocredit/">Open the bureau →</a>
+        </section>
+
+        <section class="card">
+          <h2><span class="led led-wait" id="led-adhd"></span> Tracker streak</h2>
+          <p class="big" id="adhd-big">…</p>
+          <p class="detail" id="adhd-detail">Checking the log…</p>
+          <a class="go" href="https://jonnymexican.github.io/adhdTracker/">Open the tracker →</a>
         </section>
 
         <section class="card">
