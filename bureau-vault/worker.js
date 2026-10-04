@@ -33,6 +33,13 @@
  *   DELETE /fg/admin/tasks/<ID>                                    (admin)
  *   GET    /fg/admin/nodes   → all nodes                             (admin)
  *   DELETE /fg/admin/nodes/<ID>                                    (admin)
+ *
+ * Gallery uploader proxy (browsers can't reach uploads.github.com — CORS):
+ *   POST /art/init   { tag } → { releaseId, existing }               (admin)
+ *   POST /art/asset/<releaseId>/<name>   raw image bytes → 201       (admin)
+ *   (DELETE /art/asset/<releaseId>/<assetId>)                        (admin)
+ * Both routes need x-admin-key and the ART_TOKEN secret (a token with push
+ * to jonnymexican/art).
  */
 
 const KEY_PREFIX = 'fc:v1:';
@@ -52,6 +59,7 @@ const json = (obj, status = 200) =>
     headers: {
       'content-type': 'application/json; charset=utf-8',
       'cache-control': 'no-store',
+      ...corsHeaders, // every JSON response is browser-readable cross-origin
     },
   });
 
@@ -577,6 +585,58 @@ export default {
       }
 
       return json({ error: 'method_not_allowed' }, 405);
+    }
+
+    // ---------- Gallery uploader proxy ----------
+    if (path === '/art' || path.startsWith('/art/')) {
+      if (!env.ADMIN_KEY || request.headers.get('x-admin-key') !== env.ADMIN_KEY) {
+        return json({ error: 'forbidden' }, 403);
+      }
+      if (!env.ART_TOKEN) return json({ error: 'ART_TOKEN secret not set' }, 500);
+      const gh = {
+        authorization: `token ${env.ART_TOKEN}`,
+        accept: 'application/vnd.github+json',
+        'user-agent': 'gallery-uploader',
+      };
+
+      if (path === '/art/init' && method === 'POST') {
+        const body = await readJson(request);
+        const tag = String(body?.tag || '');
+        if (!CODE_RE.test(tag)) return json({ error: 'bad_tag' }, 400);
+        const title = tag.replace(/[-_]+/g, ' ');
+        let res = await fetch(`https://api.github.com/repos/jonnymexican/art/releases/tags/${encodeURIComponent(tag)}`, { headers: gh });
+        if (res.status === 404) {
+          res = await fetch('https://api.github.com/repos/jonnymexican/art/releases', {
+            method: 'POST',
+            headers: { ...gh, 'content-type': 'application/json' },
+            body: JSON.stringify({ tag_name: tag, name: title, body: 'Paintings — ' + title }),
+          });
+          if (!res.ok) return json({ error: 'create_failed', status: res.status }, 502);
+        } else if (!res.ok) {
+          return json({ error: 'lookup_failed', status: res.status }, 502);
+        }
+        const release = await res.json();
+        const lr = await fetch(`https://api.github.com/repos/jonnymexican/art/releases/${release.id}/assets?per_page=100`, { headers: gh });
+        const existing = lr.ok ? (await lr.json()).map((a) => a.name) : [];
+        return json({ releaseId: release.id, existing });
+      }
+
+      const artAsset = path.match(/^\/art\/asset\/(\d+)\/([^/]+)$/);
+      if (artAsset && method === 'POST') {
+        const bytes = await request.arrayBuffer();
+        const res = await fetch(
+          `https://uploads.github.com/repos/jonnymexican/art/releases/${artAsset[1]}/assets?name=${encodeURIComponent(artAsset[2])}`,
+          {
+            method: 'POST',
+            headers: { ...gh, 'content-type': 'application/octet-stream', 'content-length': String(bytes.byteLength) },
+            body: bytes,
+          }
+        );
+        if (res.status === 201) return json({ ok: true });
+        return json({ error: 'upload_failed', status: res.status, detail: (await res.text()).slice(0, 200) }, 502);
+      }
+
+      return json({ error: 'not_found' }, 404);
     }
 
     // ---------- FleetGrid routes (donated idle compute) ----------

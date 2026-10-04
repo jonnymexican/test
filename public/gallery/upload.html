@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#161519" />
+    <meta name="description" content="Add paintings to The Gallery straight from any device — no git, no release forms." />
+    <title>Hang a painting — The Gallery</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; min-height: 100vh;
+        font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        background: linear-gradient(165deg, #161519 0%, #1e1a22 55%, #262030 100%);
+        color: #ece9f0; padding: 2rem 1rem 4rem;
+      }
+      main { max-width: 34rem; margin: 0 auto; }
+      h1 {
+        margin: 0 0 0.3rem; font-size: 1.7rem;
+        background: linear-gradient(90deg, #fff3d6, #f3c98b, #e8a0a8);
+        -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+      }
+      .tagline { margin: 0 0 1.3rem; color: rgba(236, 233, 240, 0.6); font-size: 0.92rem; }
+      .card {
+        background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.13);
+        border-radius: 16px; padding: 1rem 1.1rem 1.1rem; margin-bottom: 1rem;
+      }
+      h2 { margin: 0 0 0.5rem; font-size: 1rem; color: #f3c98b; }
+      label { display: block; font-size: 0.85rem; color: rgba(236, 233, 240, 0.7); margin: 0.5rem 0 0.25rem; }
+      input {
+        width: 100%; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.16);
+        color: #ece9f0; border-radius: 10px; padding: 0.55rem 0.7rem; font-size: 0.9rem; font-family: inherit;
+      }
+      input:focus { outline: none; border-color: rgba(243, 201, 139, 0.55); }
+      .drop {
+        border: 2px dashed rgba(255, 255, 255, 0.3); border-radius: 14px;
+        padding: 1.2rem 1rem; text-align: center; cursor: pointer;
+        transition: border-color 0.15s ease, background 0.15s ease;
+        background: rgba(255, 255, 255, 0.04); margin-top: 0.6rem;
+      }
+      .drop:hover, .drop.over { border-color: #f3c98b; background: rgba(243, 201, 139, 0.08); }
+      .drop b { color: #ffe9c4; }
+      .drop small { display: block; margin-top: 0.25rem; color: rgba(236, 233, 240, 0.55); }
+      .thumbs { display: flex; gap: 0.45rem; flex-wrap: wrap; margin-top: 0.7rem; }
+      .thumbs img { width: 3.2rem; height: 3.2rem; object-fit: cover; border-radius: 8px; border: 1px solid rgba(255,255,255,0.25); }
+      button {
+        background: rgba(243, 201, 139, 0.12); border: 1px solid rgba(243, 201, 139, 0.45);
+        color: #ffe9c4; border-radius: 10px; padding: 0.55rem 0.95rem; font-size: 0.9rem;
+        font-weight: 600; cursor: pointer; font-family: inherit; width: 100%;
+        transition: background 0.15s ease, filter 0.15s ease;
+      }
+      button:hover { background: rgba(243, 201, 139, 0.2); }
+      button:disabled { opacity: 0.45; cursor: default; }
+      button.primary { background: #2ec4b6; border-color: #2ec4b6; color: #06251f; }
+      button.primary:hover { filter: brightness(1.08); }
+      button.ghost { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.2); color: inherit; }
+      .bar { height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.1); margin: 0.7rem 0; overflow: hidden; }
+      .bar i { display: block; height: 100%; width: 0%; background: linear-gradient(90deg, #f3c98b, #2ec4b6); transition: width 0.3s ease; }
+      .note { font-size: 0.85rem; color: rgba(236, 233, 240, 0.7); min-height: 1.2em; margin: 0.4rem 0 0; }
+      .err { color: #ffb3a0; }
+      .ok { color: #a7f3d0; }
+      .tiny { font-size: 0.78rem; color: rgba(236, 233, 240, 0.5); margin-top: 0.6rem; }
+      details { margin-top: 0.6rem; font-size: 0.82rem; color: rgba(236, 233, 240, 0.6); }
+      summary { cursor: pointer; color: rgba(243, 201, 139, 0.8); }
+      details a { color: #f3c98b; }
+      footer { margin-top: 1.5rem; font-size: 0.78rem; color: rgba(236, 233, 240, 0.4); text-align: center; }
+      a { color: #f3c98b; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Hang a painting</h1>
+      <p class="tagline">Add photos straight to The Gallery from any device — no git, no release forms, no desktop.</p>
+
+      <div class="card" id="setup" hidden>
+        <h2>Step 1 · one-time key</h2>
+        <p class="tiny" style="margin-top:0">
+          The gallery uploads through the fleet's vault, which holds a GitHub key on your
+          behalf. Paste the <b>fleet admin key</b> (the one in
+          <code>bureau-vault/secrets.admin</code> on the desktop). It stays in this browser only.
+        </p>
+        <input id="token" type="password" placeholder="the fleet admin key" autocomplete="off" />
+        <p class="note" id="token-note"></p>
+      </div>
+
+      <div class="card" id="hang" hidden>
+        <h2>Step 2 · pick the pictures</h2>
+        <label for="tag">Collection name</label>
+        <input id="tag" placeholder="studio-2026 (dashes become spaces)" value="" />
+        <div class="drop" id="drop">
+          <b>🖼 Tap to choose photos</b> (or drop them here)
+          <small>iPhone HEIC is converted to JPG automatically · nothing but GitHub sees these</small>
+          <input type="file" id="file" accept="image/*,.heic,.heif" multiple hidden />
+        </div>
+        <div class="thumbs" id="thumbs"></div>
+        <button id="go" type="button" class="primary" disabled style="margin-top:0.8rem">⬆ Hang 0 pictures</button>
+        <div class="bar" id="bar" hidden><i id="fill"></i></div>
+        <p class="note" id="note"></p>
+        <p class="tiny">
+          Stored in this browser: <span id="stored">nothing yet</span> ·
+          <button type="button" id="forget" class="ghost" style="width:auto;padding:0.2rem 0.6rem;font-size:0.78rem">forget key</button>
+        </p>
+      </div>
+
+      <footer>
+        The result lands at <a href="./">The Gallery</a> instantly.
+        Part of <a href="/test/hub.html">Jon's Apps</a>.
+      </footer>
+    </main>
+
+    <script type="module">
+      // PNG/JPEG/WebP/GIF/AVIF go up untouched; anything else the browser can't
+      // natively show (HEIC…) is decoded by the browser's image engine and
+      // re-encoded to JPEG on a canvas — which Safari does for HEIC.
+      var KEEP = /^image\/(jpeg|png|webp|gif|avif)$/i;
+      var VAULT = 'https://bureau-vault.jonnymexican.workers.dev'; // gallery upload proxy
+      var KEY = 'gallery:upload-admin';
+      var TOKEN = '';
+      var pics = []; // { file, name, blob, isConvertedImage }
+
+      var $ = function (id) { return document.getElementById(id); };
+
+      // --- token gate ---
+      try { TOKEN = localStorage.getItem(KEY) || ''; } catch (e) {}
+      function checkToken() {
+        if (!TOKEN) {
+          $('setup').hidden = false;
+          $('hang').hidden = true;
+          return false;
+        }
+        $('setup').hidden = true;
+        $('hang').hidden = false;
+        $('stored').textContent = 'a key (hidden)';
+        return true;
+      }
+      $('token-note').textContent = '';
+      $('token').addEventListener('input', function () { $('token-note').textContent = ''; });
+      $('token').addEventListener('change', async function () {
+        var t = $('token').value.trim();
+        if (!t) return;
+        $('token-note').className = 'note';
+        $('token-note').textContent = 'Checking the key…';
+        try {
+          var res = await fetch(VAULT + '/art/init', {
+            method: 'POST',
+            headers: { 'x-admin-key': t, 'content-type': 'application/json' },
+            body: JSON.stringify({ tag: 'key-check' }),
+          });
+          if (!res.ok) throw new Error(res.status === 403 ? 'wrong admin key' : 'vault said ' + res.status);
+          TOKEN = t;
+          try { localStorage.setItem(KEY, t); } catch (e) {}
+          $('token').value = '';
+          checkToken();
+        } catch (err) {
+          $('token-note').className = 'note err';
+          $('token-note').textContent = 'That key did not work (' + err.message + ').';
+        }
+      });
+      $('forget').addEventListener('click', function () {
+        TOKEN = '';
+        try { localStorage.removeItem(KEY); } catch (e) {}
+        checkToken();
+      });
+
+      // Test/dev hook: lets tests and console pokes drive the page.
+      window.__galleryUpload = { loadFiles: loadFiles, state: function () { return { pics: pics.length, tokenSet: !!TOKEN }; } };
+
+      // --- picking + converting pics ---
+      var KEEP_RE = /\.(jpe?g|png|webp|gif|avif)$/i;
+      function loadFiles(files) {
+        var list = Array.prototype.slice.call(files || []).filter(function (f) {
+          return /^image\//.test(f.type) || /\.(heic|heif|jpe?g|png|webp|gif|avif)$/i.test(f.name);
+        });
+        var jobs = list.map(function (f) {
+          if (KEEP.test(f.type) && KEEP_RE.test(f.name)) {
+            pics.push({ file: f, name: f.name, blob: f, isConverted: false });
+            return Promise.resolve();
+          }
+          // Unknown/HEIC: let the browser decode (Safari handles HEIC), re-encode JPEG.
+          return createImageBitmap(f)
+            .then(function (img) {
+              var max = 2400; // keep uploads sane
+              var scale = Math.min(1, max / Math.max(img.width, img.height));
+              var c = document.createElement('canvas');
+              c.width = Math.round(img.width * scale);
+              c.height = Math.round(img.height * scale);
+              c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+              return new Promise(function (ok) {
+                c.toBlob(function (blob) {
+                  if (blob) {
+                    pics.push({
+                      file: f,
+                      name: f.name.replace(/\.[a-z0-9]+$/i, '') + '.jpg',
+                      blob: blob,
+                      isConverted: true,
+                    });
+                  }
+                  ok();
+                }, 'image/jpeg', 0.9);
+              });
+            })
+            .catch(function () { /* undecodable — skip quietly */ });
+        });
+        Promise.all(jobs).then(renderThumbs);
+      }
+
+      var drop = $('drop'), file = $('file');
+      drop.addEventListener('click', function () { file.click(); });
+      file.addEventListener('change', function () { loadFiles(file.files); });
+      ['dragover', 'dragenter'].forEach(function (ev) {
+        drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('over'); });
+      });
+      ['dragleave', 'drop'].forEach(function (ev) {
+        drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('over'); });
+      });
+      drop.addEventListener('drop', function (e) { loadFiles(e.dataTransfer.files); });
+
+      function renderThumbs() {
+        var box = $('thumbs');
+        box.textContent = '';
+        pics.forEach(function (p) {
+          var img = document.createElement('img');
+          img.src = URL.createObjectURL(p.blob);
+          img.title = p.name + (p.isConverted ? ' (converted to JPG)' : '');
+          img.onload = (function (u) { return function () { URL.revokeObjectURL(u); }; })(img.src);
+          box.appendChild(img);
+        });
+        $('go').disabled = pics.length === 0;
+        $('go').textContent = '⬆ Hang ' + pics.length + ' picture' + (pics.length === 1 ? '' : 's');
+      }
+
+      // --- the upload itself (browser → vault proxy → GitHub) ---
+      async function uploadOne(p, releaseId) {
+        var res = await fetch(
+          VAULT + '/art/asset/' + releaseId + '/' + encodeURIComponent(p.name),
+          {
+            method: 'POST',
+            headers: { 'x-admin-key': TOKEN, 'content-type': 'application/octet-stream' },
+            body: p.blob,
+          }
+        );
+        if (res.ok) return;
+        var j = null;
+        try { j = await res.json(); } catch (e) {}
+        throw new Error(p.name + ' → ' + (j && j.detail ? j.detail : 'HTTP ' + res.status));
+      }
+
+      $('go').addEventListener('click', async function () {
+        var tag = ($('tag').value.trim() || 'mixed-bag').toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'mixed-bag';
+        var title = tag.replace(/[-_]+/g, ' ');
+        $('go').disabled = true;
+        $('bar').hidden = false;
+        var note = $('note');
+        note.className = 'note';
+        var fill = $('fill');
+
+        var headers = { 'x-admin-key': TOKEN, 'content-type': 'application/json' };
+        try {
+          note.textContent = 'Finding the collection…';
+          var res = await fetch(VAULT + '/art/init', {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify({ tag: tag }),
+          });
+          if (!res.ok) {
+            var e = null;
+            try { e = await res.json(); } catch (x) {}
+            throw new Error((e && e.error) || 'vault said ' + res.status);
+          }
+          var release = await res.json();
+          var existing = new Set(release.existing || []);
+          var releaseId = release.releaseId;
+
+          var done = 0;
+          for (var i = 0; i < pics.length; i++) {
+            var p = pics[i];
+            note.textContent = 'Hanging ' + p.name + '…';
+            fill.style.width = Math.round((100 * done) / pics.length) + '%';
+            if (existing.has(p.name)) {
+              // Same name already up: suffix instead of failing.
+              p = { ...p, name: p.name.replace(/(\.[a-z0-9]+)$/i, '-new$1') };
+            }
+            await uploadOne(p, releaseId);
+            done += 1;
+            fill.style.width = Math.round((100 * done) / pics.length) + '%';
+          }
+          note.className = 'note ok';
+          note.textContent = '✔ All hung! ' + done + ' picture' + (done === 1 ? '' : 's') + ' in "' + title + '".';
+          pics = [];
+          renderThumbs();
+          setTimeout(function () { location.href = './'; }, 1800);
+        } catch (err) {
+          note.className = 'note err';
+          note.textContent = 'Something went wrong: ' + err.message;
+          $('go').disabled = false;
+        }
+      });
+
+      checkToken();
+    </script>
+  </body>
+</html>

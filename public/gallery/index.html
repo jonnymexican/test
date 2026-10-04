@@ -72,6 +72,12 @@
       .lb-close { right: 1rem; top: 1rem; }
       footer { margin-top: 2rem; font-size: 0.78rem; color: rgba(236, 233, 240, 0.4); text-align: center; }
       a { color: rgba(243, 201, 139, 0.9); }
+      .hang-btn {
+        display: inline-block; padding: 0.45rem 1rem; border-radius: 999px;
+        background: rgba(243, 201, 139, 0.12); border: 1px solid rgba(243, 201, 139, 0.5);
+        font-weight: 600; text-decoration: none;
+      }
+      .hang-btn:hover { background: rgba(243, 201, 139, 0.2); }
     </style>
   </head>
   <body>
@@ -79,6 +85,7 @@
       <h1>The Gallery</h1>
       <p class="tagline">Original works, straight from the studio. Click any piece to see it up close.</p>
       <p class="status" id="status">Hanging the show…</p>
+      <p style="margin:-0.5rem 0 1rem"><a class="hang-btn" href="./upload.html">🖼️ Hang a painting</a></p>
       <div id="shows"></div>
       <footer>
         The art lives in the
