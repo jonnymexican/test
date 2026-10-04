@@ -593,6 +593,8 @@ export default {
         return json({ error: 'forbidden' }, 403);
       }
       if (!env.ART_TOKEN) return json({ error: 'ART_TOKEN secret not set' }, 500);
+      // Cheap credential check for the uploader page — creates nothing.
+      if (path === '/art/ping') return json({ ok: true, artTokenReady: true });
       const gh = {
         authorization: `token ${env.ART_TOKEN}`,
         accept: 'application/vnd.github+json',

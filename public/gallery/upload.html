@@ -141,12 +141,15 @@
         $('token-note').className = 'note';
         $('token-note').textContent = 'Checking the key…';
         try {
-          var res = await fetch(VAULT + '/art/init', {
+          var res = await fetch(VAULT + '/art/ping', {
             method: 'POST',
-            headers: { 'x-admin-key': t, 'content-type': 'application/json' },
-            body: JSON.stringify({ tag: 'key-check' }),
+            headers: { 'x-admin-key': t },
           });
-          if (!res.ok) throw new Error(res.status === 403 ? 'wrong admin key' : 'vault said ' + res.status);
+          if (!res.ok) {
+            var j = null;
+            try { j = await res.json(); } catch (e) {}
+            throw new Error(res.status === 403 ? 'wrong admin key' : (j && j.error) || 'vault said ' + res.status);
+          }
           TOKEN = t;
           try { localStorage.setItem(KEY, t); } catch (e) {}
           $('token').value = '';
