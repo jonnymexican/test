@@ -39,7 +39,8 @@ export function fmtSize(bytes) {
 
 /**
  * Releases → collections of artworks:
- *   [{ title, tag, images: [{ asset, src, caption, size }] }]
+ *   [{ id, title, tag, images: [{ asset, src, caption, size }] }]
+ * `id` is the GitHub release id — what the editor's rename route targets.
  * Releases with no image assets are dropped; images sort by filename.
  */
 export function collectArtwork(releases) {
@@ -56,7 +57,7 @@ export function collectArtwork(releases) {
         return { asset: a, src: a.browser_download_url, caption: captionOf(a), size: a.size || 0 };
       });
     if (images.length) {
-      collections.push({ title: rel.name || rel.tag_name, tag: rel.tag_name, images: images });
+      collections.push({ id: rel.id, title: rel.name || rel.tag_name, tag: rel.tag_name, images: images });
     }
   });
   return collections;

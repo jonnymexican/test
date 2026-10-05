@@ -80,6 +80,11 @@ describe('collectArtwork', () => {
     const shows = collectArtwork([rel('sketchbook', [asset('x.jpg')])]);
     expect(shows[0].title).toBe('sketchbook');
   });
+
+  it('keeps the release id so the editor can target renames', () => {
+    const shows = collectArtwork([{ id: 42, name: 'studio', tag_name: 'studio', assets: [asset('a.jpg')] }]);
+    expect(shows[0].id).toBe(42);
+  });
 });
 
 describe('allImages', () => {

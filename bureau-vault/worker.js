@@ -38,8 +38,11 @@
  *   POST /art/init   { tag } → { releaseId, existing }               (admin)
  *   POST /art/asset/<releaseId>/<name>   raw image bytes → 201       (admin)
  *   (DELETE /art/asset/<releaseId>/<assetId>)                        (admin)
- * Both routes need x-admin-key and the ART_TOKEN secret (a token with push
- * to jonnymexican/art).
+ *   POST /art/asset/<assetId>/caption { label } → set artwork caption (admin)
+ *   POST /art/release/<releaseId>/name { name } → rename a show       (admin)
+ * All routes need x-admin-key and the ART_TOKEN secret (a token with push
+ * to jonnymexican/art). Captions ride the asset's GitHub label; show names
+ * on the release's name — exactly what the gallery page reads back.
  */
 
 const KEY_PREFIX = 'fc:v1:';
@@ -621,6 +624,43 @@ export default {
         const lr = await fetch(`https://api.github.com/repos/jonnymexican/art/releases/${release.id}/assets?per_page=100`, { headers: gh });
         const existing = lr.ok ? (await lr.json()).map((a) => a.name) : [];
         return json({ releaseId: release.id, existing });
+      }
+
+      // Caption edit: the label is what gallery.js prefers over the filename.
+      // Must be matched before the upload route, whose <name> would otherwise
+      // swallow "caption" as a filename.
+      const artCaption = path.match(/^\/art\/asset\/(\d+)\/caption$/);
+      if (artCaption && method === 'POST') {
+        const body = await readJson(request);
+        const label = String(body?.label ?? '').trim();
+        if (!label) return json({ error: 'bad_label' }, 400);
+        if (label.length > 120) return json({ error: 'label_too_long' }, 400);
+        const res = await fetch(`https://api.github.com/repos/jonnymexican/art/releases/assets/${artCaption[1]}`, {
+          method: 'PATCH',
+          headers: { ...gh, 'content-type': 'application/json' },
+          body: JSON.stringify({ label }),
+        });
+        if (res.ok) return json({ ok: true, label });
+        return json({ error: 'caption_failed', status: res.status, detail: (await res.text()).slice(0, 200) }, 502);
+      }
+
+      // Show rename: the release's name is the title the gallery displays.
+      const artRename = path.match(/^\/art\/release\/(\d+)\/name$/);
+      if (artRename && method === 'POST') {
+        const body = await readJson(request);
+        const name = String(body?.name ?? '').trim();
+        if (!name) return json({ error: 'bad_name' }, 400);
+        if (name.length > 120) return json({ error: 'name_too_long' }, 400);
+        const res = await fetch(`https://api.github.com/repos/jonnymexican/art/releases/${artRename[1]}`, {
+          method: 'PATCH',
+          headers: { ...gh, 'content-type': 'application/json' },
+          body: JSON.stringify({ name }),
+        });
+        if (res.ok) {
+          const rel = await res.json();
+          return json({ ok: true, name: rel.name, tag: rel.tag_name });
+        }
+        return json({ error: 'rename_failed', status: res.status, detail: (await res.text()).slice(0, 200) }, 502);
       }
 
       const artAsset = path.match(/^\/art\/asset\/(\d+)\/([^/]+)$/);
