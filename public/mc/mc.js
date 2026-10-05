@@ -5,6 +5,8 @@
  */
 import { pickThrowback, prettyName, formatDate, yearsAgoText, isAudioName } from '../djmixes/throwback.js';
 import { scoreFriends, computeAdhdStats, mergeById, todayStr } from './summaries.js';
+import { createJoinUi } from './joinui.js';
+import { joinCodeFromLocation } from './vault.js';
 
 (function () {
   var VAULT_API = 'https://api.github.com/repos/jonnymexican/dj-mixes/releases?per_page=100';
@@ -444,6 +446,42 @@ import { scoreFriends, computeAdhdStats, mergeById, todayStr } from './summaries
     if (e.key.indexOf('friendcredit:') === 0) fcLoad();
     if (e.key.indexOf('adhdtracker:') === 0) adhdLoad();
   });
+
+  // ---------------- Join a vault (settings, no devtools required) ----------------
+  var joinUi = createJoinUi({
+    readJSON: readJSON,
+    writeJSON: writeJSON,
+    ids: {
+      dialog: 'join',
+      input: 'join-input',
+      note: 'join-note',
+      status: 'join-status',
+      join: 'join-go',
+      copy: 'join-copy',
+      leave: 'join-leave',
+      close: 'join-close',
+    },
+    onJoined: function () {
+      fcLoad();
+      adhdLoad();
+    },
+    onLeft: function () {
+      fcLoad();
+      adhdLoad();
+    },
+  });
+  document.getElementById('vault-btn').addEventListener('click', function () {
+    joinUi.open();
+  });
+
+  // Invite deep link: /test/mc/?join=CODE pre-fills the dialog on arrival.
+  var inviteCode = joinCodeFromLocation(location.search, location.hash);
+  if (inviteCode) {
+    try {
+      history.replaceState(null, '', location.pathname); // refresh won't re-nag with a stale code
+    } catch (e) {}
+    joinUi.open(inviteCode);
+  }
 
   // ---------------- Fleet line ----------------
   fleetLed.className = 'led led-green';

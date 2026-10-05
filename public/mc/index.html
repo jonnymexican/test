@@ -31,8 +31,46 @@
       }
       .clock { margin: 0; font-family: Consolas, 'Courier New', monospace; color: rgba(232, 230, 240, 0.55); font-size: 0.9rem; }
       .statusline { margin: 0.7rem 0 1.6rem; font-size: 0.9rem; color: rgba(232, 230, 240, 0.7); }
+      .head-actions { margin-left: auto; display: flex; align-items: center; gap: 0.5rem; }
+      .head-btn {
+        display: inline-flex; align-items: center; gap: 0.4rem;
+        background: rgba(138, 180, 255, 0.08); border: 1px solid rgba(138, 180, 255, 0.4);
+        color: #cfe3ff; border-radius: 999px; padding: 0.45rem 0.95rem;
+        font-size: 0.86rem; font-weight: 600; cursor: pointer; font-family: inherit;
+        transition: background 0.15s ease, border-color 0.15s ease;
+      }
+      .head-btn:hover { background: rgba(138, 180, 255, 0.16); border-color: #8ab4ff; }
+      .join { position: fixed; inset: 0; z-index: 90; background: rgba(6, 10, 20, 0.86); display: flex; align-items: center; justify-content: center; padding: 1rem; }
+      .join[hidden] { display: none; }
+      .join-card {
+        width: 100%; max-width: 24rem; background: #0e1526;
+        border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 16px;
+        padding: 1.1rem 1.2rem 1.2rem; box-shadow: 0 18px 60px rgba(0, 0, 0, 0.6);
+      }
+      .join-card h2 { margin: 0 0 0.5rem; font-size: 1.05rem; color: #cfe3ff; }
+      .join-sub { margin: 0 0 0.8rem; font-size: 0.85rem; color: rgba(232, 230, 240, 0.65); line-height: 1.4; }
+      .join-label { display: block; font-size: 0.85rem; color: rgba(232, 230, 240, 0.7); margin: 0.4rem 0 0.3rem; }
+      #join-input {
+        width: 100%; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.18);
+        color: #e8e6f0; border-radius: 10px; padding: 0.55rem 0.7rem; font-size: 0.95rem;
+        font-family: Consolas, 'Courier New', monospace;
+      }
+      #join-input:focus { outline: none; border-color: rgba(110, 231, 183, 0.55); }
+      .join-note { font-size: 0.83rem; min-height: 1.2em; margin: 0.45rem 0 0; color: rgba(232, 230, 240, 0.7); overflow-wrap: anywhere; }
+      .join-note.err { color: #ffb3a0; }
+      .join-note.ok { color: #a7f3d0; }
+      .join-status { font-size: 0.8rem; color: rgba(232, 230, 240, 0.5); margin: 0.3rem 0 0; }
+      .join-row { display: flex; gap: 0.6rem; margin-top: 0.8rem; }
+      .join-row button {
+        flex: 1; border-radius: 10px; padding: 0.55rem 0.8rem; font-size: 0.88rem;
+        font-weight: 600; cursor: pointer; font-family: inherit;
+      }
+      .join-row .primary { background: rgba(110, 231, 183, 0.15); border: 1px solid rgba(110, 231, 183, 0.55); color: #a7f3d0; }
+      .join-row .primary:hover { background: rgba(110, 231, 183, 0.25); }
+      .join-row .ghost { background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.2); color: inherit; }
+      .join-row button:disabled { opacity: 0.45; cursor: default; }
       #ambient {
-        margin-left: auto; display: inline-flex; align-items: center; gap: 0.4rem;
+        display: inline-flex; align-items: center; gap: 0.4rem;
         background: rgba(110, 231, 183, 0.08); border: 1px solid rgba(110, 231, 183, 0.4);
         color: #a7f3d0; border-radius: 999px; padding: 0.45rem 0.95rem;
         font-size: 0.86rem; font-weight: 600; cursor: pointer; font-family: inherit;
@@ -124,7 +162,10 @@
           <h1>🛰 Mission Control</h1>
           <p class="clock" id="clock">—</p>
         </div>
-        <button id="ambient" type="button">🔇 Ambient</button>
+        <div class="head-actions">
+          <button id="vault-btn" type="button" class="head-btn">🔑 Vault</button>
+          <button id="ambient" type="button">🔇 Ambient</button>
+        </div>
       </div>
       <p class="statusline"><span class="led led-wait" id="led-fleet"></span> <span id="fleet-text">Booting instruments…</span></p>
 
@@ -193,6 +234,28 @@
       </div>
 
       <footer>Instrument panel for the fleet — tonight's sky is generated fresh every day. No accounts, no tracking. Part of <a href="/test/hub.html">Jon's Apps</a>.</footer>
+
+      <div class="join" id="join" hidden role="dialog" aria-modal="true" aria-label="Join a vault">
+        <div class="join-card">
+          <h2>🔑 Join a vault</h2>
+          <p class="join-sub">
+            One bureau code connects FriendCredit™ and adhdTracker on this device to the
+            shared vault. Got one from Jon? Paste it — or open your invite link and it lands here.
+          </p>
+          <label class="join-label" for="join-input">Bureau code</label>
+          <input id="join-input" autocomplete="off" spellcheck="false" placeholder="e.g. mexican-bureau" />
+          <p class="join-note" id="join-note"></p>
+          <p class="join-status" id="join-status"></p>
+          <div class="join-row">
+            <button id="join-go" type="button" class="primary" disabled>Join</button>
+            <button id="join-copy" type="button" class="ghost" disabled>🔗 Copy invite link</button>
+          </div>
+          <div class="join-row">
+            <button id="join-leave" type="button" class="ghost" hidden>Leave</button>
+            <button id="join-close" type="button" class="ghost">Close</button>
+          </div>
+        </div>
+      </div>
     </main>
     <script type="module" src="./sky.js"></script>
     <script type="module" src="./mc.js"></script>
