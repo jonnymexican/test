@@ -109,6 +109,8 @@
     </main>
 
     <script type="module">
+      import { runQueue, onlineAwaiter } from './uploadqueue.js';
+
       // PNG/JPEG/WebP/GIF/AVIF go up untouched; anything else the browser can't
       // natively show (HEIC…) is decoded by the browser's image engine and
       // re-encoded to JPEG on a canvas — which Safari does for HEIC.
@@ -119,6 +121,13 @@
       var pics = []; // { file, name, blob, isConvertedImage }
 
       var $ = function (id) { return document.getElementById(id); };
+
+      // ?tag=from-settings — the show settings dialog links here with the
+      // collection prefilled, so "hang more photos" lands on the right show.
+      try {
+        var prefill = new URLSearchParams(location.search).get('tag');
+        if (prefill) $('tag').value = prefill;
+      } catch (e) {}
 
       // --- token gate ---
       try { TOKEN = localStorage.getItem(KEY) || ''; } catch (e) {}
@@ -233,20 +242,33 @@
       }
 
       // --- the upload itself (browser → vault proxy → GitHub) ---
+      // Throws with `.status` attached so uploadqueue.js can tell a blip
+      // (retry) from a bad key (stop). No status = fetch itself failed = offline.
       async function uploadOne(p, releaseId) {
-        var res = await fetch(
-          VAULT + '/art/asset/' + releaseId + '/' + encodeURIComponent(p.name),
-          {
-            method: 'POST',
-            headers: { 'x-admin-key': TOKEN, 'content-type': 'application/octet-stream' },
-            body: p.blob,
-          }
-        );
+        var res;
+        try {
+          res = await fetch(
+            VAULT + '/art/asset/' + releaseId + '/' + encodeURIComponent(p.name),
+            {
+              method: 'POST',
+              headers: { 'x-admin-key': TOKEN, 'content-type': 'application/octet-stream' },
+              body: p.blob,
+            }
+          );
+        } catch (e) {
+          var net = new Error(p.name + ' → could not reach the vault (' + e.message + ')');
+          net.cause = e;
+          throw net; // no .status → retryable
+        }
         if (res.ok) return;
         var j = null;
         try { j = await res.json(); } catch (e) {}
-        throw new Error(p.name + ' → ' + (j && j.detail ? j.detail : 'HTTP ' + res.status));
+        var err = new Error(p.name + ' → ' + (j && j.detail ? j.detail : 'HTTP ' + res.status));
+        err.status = res.status;
+        throw err;
       }
+
+      var awaitOnline = onlineAwaiter(window);
 
       $('go').addEventListener('click', async function () {
         var tag = ($('tag').value.trim() || 'mixed-bag').toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'mixed-bag';
@@ -268,30 +290,58 @@
           if (!res.ok) {
             var e = null;
             try { e = await res.json(); } catch (x) {}
-            throw new Error((e && e.error) || 'vault said ' + res.status);
+            var initErr = new Error((e && e.error) || 'vault said ' + res.status);
+            initErr.status = res.status;
+            throw initErr;
           }
           var release = await res.json();
           var existing = new Set(release.existing || []);
           var releaseId = release.releaseId;
 
-          var done = 0;
-          for (var i = 0; i < pics.length; i++) {
-            var p = pics[i];
+          // Same name already up: suffix instead of failing.
+          var queue = pics.map(function (p) {
+            return existing.has(p.name)
+              ? { ...p, name: p.name.replace(/(\.[a-z0-9]+)$/i, '-new$1') }
+              : p;
+          });
+
+          var outcome = await runQueue(queue, function (p) {
             note.textContent = 'Hanging ' + p.name + '…';
-            fill.style.width = Math.round((100 * done) / pics.length) + '%';
-            if (existing.has(p.name)) {
-              // Same name already up: suffix instead of failing.
-              p = { ...p, name: p.name.replace(/(\.[a-z0-9]+)$/i, '-new$1') };
-            }
-            await uploadOne(p, releaseId);
-            done += 1;
-            fill.style.width = Math.round((100 * done) / pics.length) + '%';
+            return uploadOne(p, releaseId);
+          }, {
+            isOnline: function () { return navigator.onLine !== false; },
+            awaitOnline: function () {
+              note.className = 'note';
+              note.textContent = '📶 Offline — waiting to reconnect…';
+              return awaitOnline();
+            },
+            onRetry: function (info) {
+              note.className = 'note';
+              note.textContent = '⚠ ' + info.error.message + ' — retry ' +
+                info.attempt + ' in ' + (info.delay / 1000).toFixed(1) + 's';
+            },
+            onProgress: function (p) {
+              fill.style.width = Math.round((100 * p.done) / p.total) + '%';
+            },
+          });
+
+          if (outcome.failed.length === 0) {
+            note.className = 'note ok';
+            note.textContent = '✔ All hung! ' + outcome.done.length + ' picture' +
+              (outcome.done.length === 1 ? '' : 's') + ' in "' + title + '".';
+            pics = [];
+            renderThumbs();
+            setTimeout(function () { location.href = './'; }, 1800);
+            return;
           }
-          note.className = 'note ok';
-          note.textContent = '✔ All hung! ' + done + ' picture' + (done === 1 ? '' : 's') + ' in "' + title + '".';
-          pics = [];
+          // Keep the stragglers selected so a tap retries just those.
+          pics = outcome.failed.map(function (f) { return f.item; });
           renderThumbs();
-          setTimeout(function () { location.href = './'; }, 1800);
+          note.className = 'note err';
+          note.textContent = '⚠ ' + outcome.failed.length + ' of ' + queue.length +
+            ' didn’t make it (' + outcome.failed[0].error.message + '). They’re still selected — tap to retry.';
+          $('go').disabled = false;
+          $('go').textContent = '⬆ Retry ' + pics.length + ' picture' + (pics.length === 1 ? '' : 's');
         } catch (err) {
           note.className = 'note err';
           note.textContent = 'Something went wrong: ' + err.message;

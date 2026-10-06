@@ -119,6 +119,69 @@
       .edit-row .primary { background: #2ec4b6; border: 1px solid #2ec4b6; color: #06251f; }
       .edit-row .ghost { background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.2); color: inherit; }
       .edit-row button:disabled { opacity: 0.5; cursor: default; }
+      /* scan-to-open QR dialog */
+      .qr {
+        position: fixed; inset: 0; z-index: 95; background: rgba(8, 7, 11, 0.9);
+        display: flex; align-items: center; justify-content: center; padding: 1rem;
+      }
+      .qr[hidden] { display: none; }
+      .qr-card {
+        width: 100%; max-width: 20rem; background: #221d29;
+        border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 16px;
+        padding: 1.2rem 1.3rem 1.3rem; text-align: center;
+        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.6);
+      }
+      .qr-card h2 { margin: 0 0 0.7rem; font-size: 1.05rem; color: #f3c98b; }
+      .qr-card img { width: 15rem; height: 15rem; image-rendering: pixelated; border-radius: 10px; background: #fff; }
+      .qr-card p { font-size: 0.85rem; color: rgba(236, 233, 240, 0.7); margin: 0.8rem 0 0; }
+      .qr-card .edit-row { margin-top: 0.9rem; }
+      /* show settings dialog */
+      .settings {
+        position: fixed; inset: 0; z-index: 92; background: rgba(8, 7, 11, 0.86);
+        display: flex; align-items: center; justify-content: center; padding: 1rem;
+      }
+      .settings[hidden] { display: none; }
+      .settings-card {
+        width: 100%; max-width: 26rem; background: #221d29;
+        border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 16px;
+        padding: 1.1rem 1.2rem 1.2rem; box-shadow: 0 18px 60px rgba(0, 0, 0, 0.6);
+        max-height: 88vh; overflow-y: auto;
+      }
+      .settings-card h2 { margin: 0 0 0.7rem; font-size: 1.05rem; color: #f3c98b; }
+      .settings-card label { display: block; font-size: 0.85rem; color: rgba(236, 233, 240, 0.7); margin: 0.4rem 0 0.3rem; }
+      .settings-card input {
+        width: 100%; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.18);
+        color: #ece9f0; border-radius: 10px; padding: 0.55rem 0.7rem; font-size: 0.95rem; font-family: inherit;
+      }
+      .settings-card input:focus { outline: none; border-color: rgba(243, 201, 139, 0.55); }
+      .settings-card .note { font-size: 0.83rem; color: rgba(236, 233, 240, 0.7); min-height: 1.2em; margin: 0.45rem 0 0; }
+      .settings-card .note.err { color: #ffb3a0; }
+      .settings-card .note.ok { color: #a7f3d0; }
+      .caps-hint { font-size: 0.78rem; color: rgba(236, 233, 240, 0.45); margin: 0.5rem 0 0.2rem; }
+      .caps { max-height: 12rem; overflow-y: auto; display: flex; flex-direction: column; gap: 0.4rem; padding-right: 0.2rem; }
+      .cap-row { display: flex; gap: 0.5rem; align-items: center; }
+      .cap-row img { width: 2.6rem; height: 2.6rem; object-fit: cover; border-radius: 7px; border: 1px solid rgba(255, 255, 255, 0.22); flex: none; }
+      .settings .key-line { display: flex; gap: 0.5rem; align-items: center; }
+      .settings .key-line input { flex: 1; }
+      .settings .key-line button { width: auto; white-space: nowrap; padding: 0.5rem 0.7rem; font-size: 0.82rem; }
+      .settings a.upload-link {
+        display: inline-block; margin-top: 0.6rem; font-size: 0.85rem; text-decoration: none;
+      }
+      .settings .stored { font-size: 0.83rem; color: rgba(236, 233, 240, 0.7); margin: 0.4rem 0 0; }
+      .settings .forget {
+        background: transparent; border: 1px solid rgba(255, 255, 255, 0.2); color: rgba(236, 233, 240, 0.6);
+        border-radius: 8px; font-size: 0.72rem; padding: 0.18rem 0.55rem; cursor: pointer; font-family: inherit; width: auto;
+      }
+      .settings .forget:hover { border-color: rgba(243, 201, 139, 0.6); color: #ffe9c4; }
+      .settings .edit-row { display: flex; gap: 0.6rem; margin-top: 0.9rem; }
+      .settings .edit-row button {
+        flex: 1; border-radius: 10px; padding: 0.55rem 0.8rem; font-size: 0.9rem;
+        font-weight: 600; cursor: pointer; font-family: inherit;
+      }
+      .settings .edit-row .primary { background: #2ec4b6; border: 1px solid #2ec4b6; color: #06251f; }
+      .settings .edit-row .ghost { background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.2); color: inherit; }
+      .settings .edit-row button:disabled { opacity: 0.5; cursor: default; }
+      .gear-btn { font-size: 0.78rem; }
     </style>
   </head>
   <body>
@@ -126,7 +189,10 @@
       <h1>The Gallery</h1>
       <p class="tagline">Original works, straight from the studio. Click any piece to see it up close.</p>
       <p class="status" id="status">Hanging the show…</p>
-      <p style="margin:-0.5rem 0 1rem"><a class="hang-btn" href="./upload.html">🖼️ Hang a painting</a></p>
+      <p style="margin:-0.5rem 0 1rem">
+        <a class="hang-btn" href="./upload.html">🖼️ Hang a painting</a>
+        <button class="hang-btn" id="qr-open" type="button" style="margin-left:0.5rem;cursor:pointer;font-family:inherit;font-size:0.95rem">📱 Scan to open</button>
+      </p>
       <div id="shows"></div>
       <footer>
         The art lives in the
@@ -163,9 +229,47 @@
       </div>
     </div>
 
+    <div class="qr" id="qr" hidden role="dialog" aria-modal="true" aria-label="Scan to open The Gallery">
+      <div class="qr-card">
+        <h2>Open The Gallery on your phone</h2>
+        <img src="../gallery-qr.png" alt="QR code linking to The Gallery" width="240" height="240" />
+        <p>Point your camera at the code to hang photos or show a piece from anywhere in the room.</p>
+        <div class="edit-row">
+          <button id="qr-close" type="button" class="ghost">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings" id="settings" hidden role="dialog" aria-modal="true" aria-label="Show settings">
+      <div class="settings-card">
+        <h2 id="settings-h">Show settings</h2>
+        <label for="settings-name">Show name</label>
+        <input id="settings-name" />
+        <div id="settings-capshint" class="caps-hint">Captions</div>
+        <div id="settings-caps" class="caps"></div>
+        <label for="settings-key">Fleet admin key</label>
+        <div class="key-line" id="settings-keybox">
+          <input id="settings-key" type="password" autocomplete="off" placeholder="the fleet admin key" />
+          <button id="settings-connect" type="button" class="ghost">Check key</button>
+        </div>
+        <p class="stored">
+          <span id="settings-keystatus"></span>
+          <button id="settings-forget" type="button" class="forget" hidden>forget</button>
+        </p>
+        <p class="note" id="settings-keynote"></p>
+        <a id="settings-upload" class="hang-btn upload-link" href="./upload.html">🖼️ Hang more photos into this show</a>
+        <p class="note" id="settings-note"></p>
+        <div class="edit-row">
+          <button id="settings-save" type="button" class="primary">Save changes</button>
+          <button id="settings-close" type="button" class="ghost">Close</button>
+        </div>
+      </div>
+    </div>
+
     <script type="module">
       import { collectArtwork, allImages, fmtSize } from './gallery.js';
       import { createEditor } from './edit.js';
+      import { createSettings } from './settings.js';
 
       (function () {
         var API = 'https://api.github.com/repos/jonnymexican/art/releases?per_page=100';
@@ -195,6 +299,42 @@
             cancel: 'edit-cancel',
           },
         });
+
+        var settings = createSettings({
+          vault: VAULT,
+          storageKey: 'gallery:upload-admin',
+          ids: {
+            dialog: 'settings',
+            heading: 'settings-h',
+            name: 'settings-name',
+            caps: 'settings-caps',
+            capshint: 'settings-capshint',
+            keybox: 'settings-keybox',
+            key: 'settings-key',
+            connect: 'settings-connect',
+            keynote: 'settings-keynote',
+            keystatus: 'settings-keystatus',
+            forget: 'settings-forget',
+            upload: 'settings-upload',
+            note: 'settings-note',
+            save: 'settings-save',
+            close: 'settings-close',
+          },
+          onSaved: function (saved) {
+            if (saved.name) refreshUntil('.show-title', saved.name, 6);
+            else if (saved.captions) refresh(); // captions changed — hang them fresh
+          },
+        });
+
+        // --- scan-to-open QR ---
+        var qr = document.getElementById('qr');
+        document.getElementById('qr-open').addEventListener('click', function () {
+          qr.hidden = false;
+          document.getElementById('qr-close').focus();
+        });
+        function closeQr() { qr.hidden = true; }
+        document.getElementById('qr-close').addEventListener('click', closeQr);
+        qr.addEventListener('click', function (e) { if (e.target === qr) closeQr(); });
 
         function openLightbox(i) {
           idx = (i + flat.length) % flat.length;
@@ -228,15 +368,13 @@
             h.className = 'show-title';
             h.textContent = show.title;
             head.appendChild(h);
-            var ren = document.createElement('button');
-            ren.type = 'button';
-            ren.className = 'edit-btn';
-            ren.textContent = '✏️ rename';
-            ren.addEventListener('click', async function () {
-              var r = await editor.renameShow(show.id, show.title);
-              if (r.saved) refreshUntil('.show-title', r.text, 6);
-            });
-            head.appendChild(ren);
+            var gear = document.createElement('button');
+            gear.type = 'button';
+            gear.className = 'edit-btn gear-btn';
+            gear.textContent = '⚙ settings';
+            gear.setAttribute('aria-label', 'Settings for ' + show.title);
+            gear.addEventListener('click', function () { settings.open(show); });
+            head.appendChild(gear);
             sec.appendChild(head);
             var wall = document.createElement('div');
             wall.className = 'wall';
@@ -311,7 +449,8 @@
         });
 
         document.addEventListener('keydown', function (e) {
-          if (editor.isOpen()) return; // the edit dialog owns the keyboard while open
+          if (editor.isOpen() || settings.isOpen()) return; // dialogs own the keyboard while open
+          if (e.key === 'Escape' && !qr.hidden) { closeQr(); return; }
           if (lb.hidden) return;
           if (e.key === 'Escape') closeLightbox();
           else if (e.key === 'ArrowLeft') openLightbox(idx - 1);
