@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#12101f" />
+    <meta name="description" content="Art Inspos — abstract masterpieces shuffled from the Art Institute of Chicago's open collection. Another, and another." />
+    <title>Art Inspos — Jon's Apps</title>
+    <style>
+      * { box-sizing: border-box; }
+      :root { --accent: #8ab4ff; }
+      html { background: #12101f; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        background: radial-gradient(circle at 15% -10%, color-mix(in srgb, var(--accent) 14%, #1a1730) 0%, #12101f 55%, #0c0a16 100%);
+        color: #ece9f6;
+        padding: 1.6rem 1rem 3rem;
+        transition: background 0.6s ease;
+      }
+      main { max-width: 54rem; margin: 0 auto; }
+      .head { display: flex; align-items: baseline; gap: 0.8rem; flex-wrap: wrap; }
+      h1 {
+        margin: 0;
+        font-size: 1.8rem;
+        background: linear-gradient(90deg, #f8b500, #ff7e5f, #a78bfa);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .status { margin: 0.5rem 0 1.2rem; font-size: 0.9rem; color: rgba(236, 233, 246, 0.65); }
+      .led { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #6b7280; margin-right: 0.35rem; vertical-align: middle; }
+      .led-green { background: #34d399; box-shadow: 0 0 8px rgba(52, 211, 153, 0.8); }
+      .led-amber { background: #fbbf24; box-shadow: 0 0 8px rgba(251, 191, 36, 0.7); }
+      .stage {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 18px;
+        padding: 1rem 1rem 0.9rem;
+        text-align: center;
+      }
+      #art {
+        max-width: 100%;
+        max-height: 58vh;
+        object-fit: contain;
+        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.25);
+        min-height: 12rem;
+        cursor: zoom-in;
+      }
+      .caption { margin: 0.85rem auto 0; max-width: 40rem; }
+      .caption .title { font-size: 1.15rem; font-weight: 700; font-family: Georgia, 'Times New Roman', serif; }
+      .caption .by { margin: 0.2rem 0 0; font-size: 0.92rem; color: rgba(236, 233, 246, 0.8); }
+      .caption .medium { margin: 0.25rem 0 0; font-size: 0.8rem; color: rgba(236, 233, 246, 0.5); }
+      .caption .credit { margin: 0.2rem 0 0; font-size: 0.72rem; color: rgba(236, 233, 246, 0.38); }
+      .chips { margin: 0.5rem 0 0; display: flex; gap: 0.35rem; justify-content: center; flex-wrap: wrap; }
+      .chip {
+        font-size: 0.72rem; padding: 0.15rem 0.55rem; border-radius: 999px;
+        border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+        color: color-mix(in srgb, var(--accent) 80%, #fff);
+        background: color-mix(in srgb, var(--accent) 12%, transparent);
+      }
+      .controls { display: flex; gap: 0.55rem; justify-content: center; flex-wrap: wrap; margin: 1.1rem 0 0; }
+      .btn {
+        display: inline-flex; align-items: center; gap: 0.4rem;
+        border-radius: 999px; padding: 0.55rem 1.1rem;
+        font-size: 0.92rem; font-weight: 600; font-family: inherit;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.07); color: inherit; cursor: pointer;
+        transition: background 0.15s ease, border-color 0.15s ease;
+      }
+      .btn:hover { background: rgba(255, 255, 255, 0.13); }
+      .btn.primary { background: color-mix(in srgb, var(--accent) 22%, transparent); border-color: color-mix(in srgb, var(--accent) 65%, transparent); }
+      .btn.primary:hover { background: color-mix(in srgb, var(--accent) 34%, transparent); }
+      .btn.on { border-color: #fbbf24; color: #ffd28a; }
+      .btn:disabled { opacity: 0.45; cursor: default; }
+      .hint { margin: 0.8rem 0 0; text-align: center; font-size: 0.78rem; color: rgba(236, 233, 246, 0.42); }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: 0.6rem; margin-top: 1rem; }
+      .grid[hidden] { display: none; }
+      .tile { position: relative; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 10px; overflow: hidden; background: rgba(0, 0, 0, 0.25); cursor: pointer; padding: 0; }
+      .tile img { width: 100%; height: 7rem; object-fit: cover; display: block; }
+      .tile .tile-cap { font-size: 0.7rem; padding: 0.3rem 0.4rem 0.4rem; text-align: left; color: rgba(236, 233, 246, 0.8); }
+      .tile .tile-x {
+        position: absolute; top: 0.25rem; right: 0.25rem;
+        border: none; border-radius: 50%; width: 1.4rem; height: 1.4rem;
+        background: rgba(0, 0, 0, 0.6); color: #fff; cursor: pointer; font-size: 0.75rem;
+      }
+      .empty { grid-column: 1 / -1; text-align: center; color: rgba(236, 233, 246, 0.5); font-size: 0.9rem; padding: 1.5rem 0; }
+      footer { margin-top: 1.6rem; font-size: 0.78rem; color: rgba(236, 233, 246, 0.42); text-align: center; }
+      footer a { color: #8ab4ff; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="head">
+        <h1>🖌️ Art Inspos</h1>
+      </div>
+      <p class="status"><span class="led" id="led"></span><span id="status">Warming up the projector…</span></p>
+
+      <div class="stage" id="stage">
+        <img id="art" alt="" />
+        <div class="caption">
+          <div class="title" id="art-title">…</div>
+          <p class="by" id="art-by"></p>
+          <p class="medium" id="art-medium"></p>
+          <p class="credit" id="art-credit"></p>
+          <div class="chips" id="art-chips"></div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button class="btn primary" id="next" type="button">Another →</button>
+        <button class="btn" id="fav" type="button">☆ Favorite</button>
+        <button class="btn" id="toggle-favs" type="button">★ Favorites (0)</button>
+        <a class="btn" id="open-aic" href="#" target="_blank" rel="noopener noreferrer">Open at AIC ↗</a>
+      </div>
+      <p class="hint">or press <b>space</b> / <b>→</b> for another, <b>f</b> to favorite</p>
+
+      <div class="grid" id="favs" hidden></div>
+
+      <footer>
+        Images: Art Institute of Chicago (CC0) and Wikimedia Commons (PD / CC) · each piece links to its source. No accounts, nothing stored online.
+        Part of <a href="/test/hub.html">Jon's Apps</a>.
+      </footer>
+    </main>
+
+    <script type="module">
+      import {
+        STRATEGIES,
+        searchUrl,
+        commonsUrl,
+        normalizeList,
+        normalizeCommonsList,
+        normalizeArtwork,
+        shuffle,
+      } from './inspo.js';
+
+      var API = 'https://api.artic.edu/api/v1';
+      var FAVS_KEY = 'inspo:favorites';
+      var led = document.getElementById('led');
+      var statusEl = document.getElementById('status');
+      var artEl = document.getElementById('art');
+      var titleEl = document.getElementById('art-title');
+      var byEl = document.getElementById('art-by');
+      var mediumEl = document.getElementById('art-medium');
+      var creditEl = document.getElementById('art-credit');
+      var chipsEl = document.getElementById('art-chips');
+      var nextBtn = document.getElementById('next');
+      var favBtn = document.getElementById('fav');
+      var toggleFavsBtn = document.getElementById('toggle-favs');
+      var favsEl = document.getElementById('favs');
+      var stageEl = document.getElementById('stage');
+      var openAic = document.getElementById('open-aic');
+
+      var queue = [];
+      var seen = new Set();
+      var current = null;
+      var favorites = loadFavorites();
+      var showingFavs = false;
+      var busy = false;
+      var imgFails = 0; // consecutive image load failures
+      var aicImgFails = 0; // AIC IIIF images blocked (Cloudflare challenge) on this network
+      var aicImagesBlocked = false;
+
+      function setStatus(text, cls) {
+        statusEl.textContent = text;
+        led.className = 'led' + (cls ? ' ' + cls : '');
+      }
+
+      function loadFavorites() {
+        try {
+          var raw = localStorage.getItem(FAVS_KEY);
+          var list = raw ? JSON.parse(raw) : [];
+          return Array.isArray(list) ? list : [];
+        } catch (e) {
+          return [];
+        }
+      }
+
+      function saveFavorites() {
+        try {
+          localStorage.setItem(FAVS_KEY, JSON.stringify(favorites));
+        } catch (e) { /* private mode — favorites just won't persist */ }
+        if (!showingFavs) toggleFavsBtn.textContent = '★ Favorites (' + favorites.length + ')';
+      }
+
+      function pickStrategy() {
+        var pool = aicImagesBlocked
+          ? STRATEGIES.filter(function (s) { return s.source !== 'AIC'; })
+          : STRATEGIES;
+        return pool[Math.floor(Math.random() * pool.length)];
+      }
+
+      async function fetchStrategy(strategy) {
+        if (strategy.source === 'Commons') {
+          var offset = 40 * Math.floor(Math.random() * 12); // spread beyond page one
+          var res = await fetch(commonsUrl(strategy.q, 40, offset));
+          if (!res.ok) throw new Error('Commons said ' + res.status);
+          var json = await res.json();
+          if (json.error) throw new Error(json.error.info || 'Commons error');
+          return normalizeCommonsList(json.query && json.query.pages);
+        }
+        // AIC relevance decays fast: shallow pages only, page 1 as fallback.
+        var page = 1 + Math.floor(Math.random() * 3);
+        var r = await fetch(searchUrl(strategy, page));
+        if (!r.ok) throw new Error('AIC said ' + r.status);
+        var j = await r.json();
+        var arts = normalizeList(j.data || []);
+        if (!arts.length && page > 1) {
+          r = await fetch(searchUrl(strategy, 1));
+          if (!r.ok) throw new Error('AIC said ' + r.status);
+          j = await r.json();
+          arts = normalizeList(j.data || []);
+        }
+        return arts;
+      }
+
+      async function pullBatch() {
+        // A few strategies per pull: single-artist queries can come up empty.
+        // Pace the attempts — both APIs throttle bursts.
+        for (var attempt = 0; attempt < 4; attempt++) {
+          if (attempt) await new Promise(function (ok) { setTimeout(ok, 700); });
+          var arts = await fetchStrategy(pickStrategy());
+          var fresh = shuffle(arts.filter(function (a) { return !seen.has(a.key); }));
+          if (fresh.length) return fresh;
+        }
+        return [];
+      }
+
+      async function ensureQueue() {
+        if (queue.length > 2 || busy) return;
+        busy = true;
+        try {
+          var batch = await pullBatch();
+          if (!batch.length && seen.size) {
+            seen.clear(); // whole pool walked — start over
+            batch = await pullBatch();
+          }
+          batch.forEach(function (a) { seen.add(a.key); });
+          queue = queue.concat(batch);
+        } catch (err) {
+          setStatus('Could not reach the collection (' + err.message + ') — retrying soon.', 'led-amber');
+          setTimeout(ensureQueue, 8000);
+        } finally {
+          busy = false;
+        }
+      }
+
+      function isFav(key) {
+        return favorites.some(function (f) { return f.key === key; });
+      }
+
+      function showArt(art) {
+        current = art;
+        seen.add(art.key);
+        artEl.src = art.imageUrl;
+        artEl.alt = art.title + ' by ' + art.artist;
+        titleEl.textContent = art.title;
+        byEl.textContent = art.artist + (art.date ? ' · ' + art.date : '');
+        mediumEl.textContent = art.medium || '';
+        chipsEl.textContent = '';
+        (art.styles.length ? art.styles : [art.classification]).filter(Boolean).forEach(function (s) {
+          var chip = document.createElement('span');
+          chip.className = 'chip';
+          chip.textContent = s;
+          chipsEl.appendChild(chip);
+        });
+        creditEl.textContent =
+          art.source === 'AIC'
+            ? 'Art Institute of Chicago · CC0'
+            : 'Wikimedia Commons · ' + art.license;
+        if (art.accent) document.documentElement.style.setProperty('--accent', art.accent);
+        openAic.href = art.pageUrl;
+        favBtn.textContent = isFav(art.key) ? '★ Favorited' : '☆ Favorite';
+        favBtn.classList.toggle('on', isFav(art.key));
+        setStatus('Shuffling the abstract collection · ' + queue.length + ' queued', 'led-green');
+      }
+
+      artEl.addEventListener('load', function () {
+        imgFails = 0;
+        setStatus('Shuffling the abstract collection · ' + queue.length + ' queued', 'led-green');
+      });
+
+      artEl.addEventListener('error', function () {
+        if (!current) return;
+        imgFails++;
+        if (current.source === 'AIC') {
+          aicImgFails++;
+          if (aicImgFails >= 2 && !aicImagesBlocked) {
+            aicImagesBlocked = true;
+            // Drop queued AIC items too — their images won't load either.
+            queue = queue.filter(function (a) { return a.source !== 'AIC'; });
+            imgFails = 0;
+            setStatus('AIC images are blocked on this network — showing Wikimedia Commons instead.', 'led-amber');
+          }
+        }
+        if (imgFails > 3) {
+          setStatus('Images are not loading from either source — check the connection.', 'led-amber');
+          return;
+        }
+        if (!aicImagesBlocked) setStatus('That image is blocked by its source — skipping…', 'led-amber');
+        setTimeout(next, 250);
+      });
+
+      async function next() {
+        if (showingFavs) showFavs(false);
+        await ensureQueue();
+        var art = queue.shift();
+        if (!art) {
+          setStatus('The projector is out of slides — try again in a moment.', 'led-amber');
+          return;
+        }
+        showArt(art);
+        ensureQueue();
+      }
+
+      function toggleFavorite() {
+        if (!current) return;
+        if (isFav(current.key)) {
+          favorites = favorites.filter(function (f) { return f.key !== current.key; });
+        } else {
+          favorites.push(current);
+        }
+        saveFavorites();
+        showArt(current); // refresh the button state
+        if (showingFavs) renderFavs();
+      }
+
+      function renderFavs() {
+        favsEl.textContent = '';
+        if (!favorites.length) {
+          var empty = document.createElement('div');
+          empty.className = 'empty';
+          empty.textContent = 'No favorites yet — hit ☆ on anything that stops you.';
+          favsEl.appendChild(empty);
+          return;
+        }
+        favorites.slice().reverse().forEach(function (art) {
+          var tile = document.createElement('button');
+          tile.type = 'button';
+          tile.className = 'tile';
+          var img = document.createElement('img');
+          img.loading = 'lazy';
+          img.src = art.imageUrl;
+          img.alt = art.title;
+          var cap = document.createElement('div');
+          cap.className = 'tile-cap';
+          cap.textContent = art.title + ' — ' + art.artist;
+          var x = document.createElement('button');
+          x.type = 'button';
+          x.className = 'tile-x';
+          x.textContent = '✕';
+          x.title = 'Remove favorite';
+          x.addEventListener('click', function (e) {
+            e.stopPropagation();
+            favorites = favorites.filter(function (f) { return f.key !== art.key; });
+            saveFavorites();
+            renderFavs();
+          });
+          tile.appendChild(img);
+          tile.appendChild(cap);
+          tile.appendChild(x);
+          tile.addEventListener('click', function () {
+            showArt(art);
+            showFavs(false);
+          });
+          favsEl.appendChild(tile);
+        });
+      }
+
+      function showFavs(force) {
+        showingFavs = typeof force === 'boolean' ? force : !showingFavs;
+        if (showingFavs) renderFavs();
+        favsEl.hidden = !showingFavs;
+        stageEl.hidden = showingFavs;
+        toggleFavsBtn.classList.toggle('on', showingFavs);
+        toggleFavsBtn.textContent = showingFavs ? '← Back to the feed' : '★ Favorites (' + favorites.length + ')';
+      }
+
+      // --- deep link: /test/inspo/?i=123 shows one specific work ---
+      async function loadById(id) {
+        setStatus('Fetching that piece…', 'led-amber');
+        var res = await fetch(API + '/artworks/' + id + '?fields=id,title,artist_title,date_display,image_id,classification_title,style_titles,department_title,medium_display,color,is_public_domain');
+        if (!res.ok) throw new Error('AIC said ' + res.status);
+        var json = await res.json();
+        var art = normalizeArtwork(json.data || {});
+        if (!art) throw new Error('that work has no image');
+        showArt(art);
+      }
+
+      nextBtn.addEventListener('click', next);
+      favBtn.addEventListener('click', toggleFavorite);
+      toggleFavsBtn.addEventListener('click', function () { showFavs(); });
+      artEl.addEventListener('click', function () {
+        if (current) window.open(current.pageUrl, '_blank', 'noopener');
+      });
+      document.addEventListener('keydown', function (e) {
+        if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
+        if (e.key === ' ' || e.key === 'ArrowRight') { e.preventDefault(); next(); }
+        else if (e.key === 'f' || e.key === 'F') toggleFavorite();
+      });
+
+      saveFavorites(); // syncs the button count from storage
+
+      var deepLink = new URLSearchParams(location.search).get('i');
+      if (deepLink) {
+        loadById(deepLink).catch(function () { next(); });
+      } else {
+        next();
+      }
+    </script>
+  </body>
+</html>
