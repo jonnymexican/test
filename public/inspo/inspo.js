@@ -1,5 +1,5 @@
 /**
- * Art Inspos — pure helpers for the abstract-art shuffle feed.
+ * Art Inspos — pure helpers for the canvas-only abstract-art shuffle feed.
  *
  * Two key-free sources, both CORS-enabled from the browser:
  *   - Art Institute of Chicago open API (CC0 / public-domain works only;
@@ -36,43 +36,47 @@ export const FIELDS = [
  * its first pages — a plain q=abstract search mostly returns vases with
  * "abstract" in the description, and deep pages drift into unrelated
  * works, so the caller only randomizes over shallow pages (1–3).
+ * Note: acrylic paint only exists from the 1950s, so the CC0 pool is
+ * necessarily oil-era canon — the acrylic half of the feed comes from
+ * Commons.
  */
 export const AIC_QUERIES = [
   'Vasily Kandinsky',
   'Wassily Kandinsky',
   'Piet Mondrian',
-  'Robert Delaunay',
-  'Sonia Delaunay',
   'Marsden Hartley',
-  'color study',
-  'geometric',
   'non-objective',
   'Der Blaue Reiter',
 ];
 
 /**
- * Wikimedia Commons search terms. Commons carries both the pre-1931 PD
- * canon and modern CC-licensed abstraction, so these run wider than the
- * AIC list; the license filter in normalizeCommonsFile keeps every
- * showing legally clean either way.
+ * Wikimedia Commons search terms, centred on abstract acrylic and oil
+ * paintings (mostly CC-licensed modern work plus the PD canon — acrylic
+ * only exists from the 1950s, so its half is contemporary by nature).
+ * The license filter in normalizeCommonsFile keeps every showing
+ * legally clean.
  */
 export const COMMONS_QUERIES = [
-  'abstract painting',
-  'abstract composition painting',
-  'geometric abstract painting',
-  'color field painting',
-  'abstract expressionism painting',
-  'abstract gouache acrylic painting',
-  'non-objective painting',
-  'Wassily Kandinsky painting',
-  'Robert Delaunay painting',
-  'Frantisek Kupka painting',
-  'Sonia Delaunay painting',
-  'Kazimir Malevich painting',
-  'Piet Mondrian painting',
-  'El Lissitzky construction',
-  'Lyubov Popova painting',
-  'abstract textile pattern',
+  // acrylic — the contemporary half
+  'abstract acrylic painting',
+  'abstract acrylic painting on canvas',
+  'modern abstract acrylic painting',
+  'abstract acrylic art',
+  'abstract expressionist acrylic painting',
+  'abstract acrylic pour painting',
+  'abstract geometric acrylic painting',
+  'color field acrylic painting',
+  'abstract acrylic composition',
+  'abstract painting acrylic canvas',
+  // oil — modern oils and the public-domain canon
+  'abstract oil painting on canvas',
+  'abstract oil painting',
+  'abstract expressionism oil painting',
+  'color field oil painting',
+  'abstract painting on canvas',
+  'Kandinsky oil on canvas',
+  'Mondrian abstract painting on canvas',
+  'Malevich suprematism on canvas',
 ];
 
 /** Every strategy the feed draws from. */
@@ -187,7 +191,7 @@ export function tidyTitle(s) {
 }
 
 const ABSTRACT_RE =
-  /abstract|non[- ]objective|color field|geometric|constructiv|supremat|de stijl|surreal|cubis|expressionis|biomorphic|automat|concret|orphism|synchrom|rythm|rhythm/i;
+  /abstract|non[- ]objective|color field|geometric|constructiv|supremat|de stijl|surreal|cubis|expressionis|biomorphic|automat|concret|orphism|synchrom|simultaneous|rythm|rhythm/i;
 
 // Artists the feed queries by name — their work counts as abstract even
 // when AIC's style tags say something narrower.
@@ -195,7 +199,8 @@ const KNOWN_ARTISTS = [
   'kandinsky',
   'mondrian',
   'kupka',
-  'delaunay',
+  'robert delaunay',
+  'sonia delaunay',
   'miró',
   'miro',
   'klee',
@@ -224,12 +229,28 @@ export function isAbstractish(art) {
 }
 
 /**
+ * What is the work painted on? 'canvas' (incl. linen), 'other' (paper,
+ * panel, textile…), or 'unknown' when the medium isn't stated.
+ */
+export function supportKind(medium) {
+  const m = stripTags(medium).toLowerCase();
+  if (!m) return 'unknown';
+  if (/canvas|linen/.test(m)) return 'canvas';
+  if (/\bpaper\b|\bpanel\b|board|\bwood\b|cardboard|tapestry|textile|photograph|\bprint\b|lithograph|etching|engraving|ceramic|bronze|marble|\bglass\b|silkscreen|screenprint|\bposter\b/.test(m)) {
+    return 'other';
+  }
+  return 'unknown';
+}
+
+/**
  * AIC API artwork → feed artwork, or null when it can't be shown
- * (no id / no image / not public domain).
+ * (no id / no image / not public domain / not painted on canvas).
+ * AIC always states the medium, so the canvas rule is strict there.
  */
 export function normalizeArtwork(raw) {
   if (!raw || raw.id == null || !raw.image_id) return null;
   if (raw.is_public_domain !== true) return null; // CC0 / open access only
+  if (supportKind(raw.medium_display) !== 'canvas') return null; // the feed is canvas-only
   const color = raw.color || {};
   return {
     key: 'aic:' + raw.id,
@@ -274,6 +295,12 @@ export function normalizeCommonsFile(page) {
   const em = ii.extmetadata || {};
   const license = stripTags(em.LicenseShortName && em.LicenseShortName.value);
   if (!isUsableLicense(license)) return null;
+  // Commons often omits Medium; the canvas-biased queries carry the signal,
+  // and a stated non-canvas medium (paper, panel, textile…) — in the
+  // metadata or the file title — is a hard out.
+  const mediumKind = supportKind(em.Medium && em.Medium.value);
+  const titleKind = supportKind(String(page.title || '').replace(/_/g, ' '));
+  if (mediumKind === 'other' || titleKind === 'other') return null;
   const fromMeta = stripTags(em.ObjectName && em.ObjectName.value)
     .split(/\s+(?:title|label)\s+QS:/i)[0] // wiki fact-tracking junk
     .trim();

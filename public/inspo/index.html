@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#12101f" />
-    <meta name="description" content="Art Inspos — abstract masterpieces shuffled from the Art Institute of Chicago's open collection. Another, and another." />
+    <meta name="description" content="Art Inspos — abstract acrylic paintings, shuffled from open collections. Another, and another." />
     <title>Art Inspos — Jon's Apps</title>
     <style>
       * { box-sizing: border-box; }
@@ -120,7 +120,7 @@
       <div class="grid" id="favs" hidden></div>
 
       <footer>
-        Images: Art Institute of Chicago (CC0) and Wikimedia Commons (PD / CC) · each piece links to its source. No accounts, nothing stored online.
+        Images: Art Institute of Chicago (CC0) and Wikimedia Commons (PD / CC) — abstract canvases only · each piece links to its source. No accounts, nothing stored online.
         Part of <a href="/test/hub.html">Jon's Apps</a>.
       </footer>
     </main>
@@ -274,12 +274,12 @@
         openAic.href = art.pageUrl;
         favBtn.textContent = isFav(art.key) ? '★ Favorited' : '☆ Favorite';
         favBtn.classList.toggle('on', isFav(art.key));
-        setStatus('Shuffling the abstract collection · ' + queue.length + ' queued', 'led-green');
+        setStatus('Shuffling abstract paintings · ' + queue.length + ' queued', 'led-green');
       }
 
       artEl.addEventListener('load', function () {
         imgFails = 0;
-        setStatus('Shuffling the abstract collection · ' + queue.length + ' queued', 'led-green');
+        setStatus('Shuffling abstract paintings · ' + queue.length + ' queued', 'led-green');
       });
 
       artEl.addEventListener('error', function () {

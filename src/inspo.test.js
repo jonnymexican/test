@@ -8,6 +8,7 @@ import {
   cleanDate,
   tidyTitle,
   isUsableLicense,
+  supportKind,
   isAbstractish,
   normalizeArtwork,
   normalizeList,
@@ -147,6 +148,32 @@ describe('isAbstractish', () => {
     expect(isAbstractish({ styles: ['Bauhaus'], classification: 'design', title: 'Garden', artist: 'Paul Klee' })).toBe(true);
     expect(isAbstractish({ styles: [], classification: 'painting', title: 'Blow', artist: 'Bridget Riley' })).toBe(true);
   });
+
+  it('matches the right Delaunays and not the 19th-century portraitist', () => {
+    expect(isAbstractish({ styles: [], classification: '', title: 'Rythmes', artist: 'Robert Delaunay' })).toBe(true);
+    expect(isAbstractish({ styles: [], classification: '', title: 'Portrait of Alphée Dubois', artist: 'Eugène Delaunay' })).toBe(false);
+  });
+});
+
+describe('supportKind (canvas-only feed)', () => {
+  it('recognises canvas and linen supports', () => {
+    expect(supportKind('Oil on canvas')).toBe('canvas');
+    expect(supportKind('oil on linen')).toBe('canvas');
+    expect(supportKind('Acrylic on canvas')).toBe('canvas');
+  });
+
+  it('recognises non-canvas supports', () => {
+    expect(supportKind('Gouache on paper')).toBe('other');
+    expect(supportKind('lithograph')).toBe('other');
+    expect(supportKind('oil on wood panel')).toBe('other');
+    expect(supportKind('textile')).toBe('other');
+  });
+
+  it('reports unknown when no medium is stated', () => {
+    expect(supportKind('')).toBe('unknown');
+    expect(supportKind(undefined)).toBe('unknown');
+    expect(supportKind('mixed media')).toBe('unknown');
+  });
 });
 
 describe('normalizeArtwork (AIC)', () => {
@@ -164,13 +191,15 @@ describe('normalizeArtwork (AIC)', () => {
 
   it('drops records that cannot be shown', () => {
     expect(normalizeArtwork(null)).toBeNull();
-    expect(normalizeArtwork({ id: 1, is_public_domain: true })).toBeNull(); // no image
-    expect(normalizeArtwork({ image_id: 'x', is_public_domain: true })).toBeNull(); // no id
+    expect(normalizeArtwork({ id: 1, is_public_domain: true, medium_display: 'Oil on canvas' })).toBeNull(); // no image
+    expect(normalizeArtwork({ image_id: 'x', is_public_domain: true, medium_display: 'Oil on canvas' })).toBeNull(); // no id
     expect(normalizeArtwork(raw({ is_public_domain: false }))).toBeNull(); // not CC0
+    expect(normalizeArtwork(raw({ medium_display: 'Gouache on paper' }))).toBeNull(); // not canvas
+    expect(normalizeArtwork(raw({ medium_display: 'Lithograph on paper' }))).toBeNull(); // not canvas
   });
 
   it('fills sensible defaults for sparse records', () => {
-    const art = normalizeArtwork({ id: 9, image_id: 'img', is_public_domain: true });
+    const art = normalizeArtwork({ id: 9, image_id: 'img', is_public_domain: true, medium_display: 'Oil on canvas' });
     expect(art.title).toBe('Untitled');
     expect(art.artist).toBe('Unknown artist');
     expect(art.accent).toBeNull();
@@ -224,6 +253,23 @@ describe('normalizeCommonsFile', () => {
       value: 'Landschap bij Uden title QS:P1476,en:"Landschap bij Uden" label QS:P1868,"listartist"',
     };
     expect(normalizeCommonsFile(file).title).toBe('Landschap bij Uden');
+  });
+
+  it('rejects non-canvas mediums but allows unstated ones', () => {
+    const panel = commonsFile();
+    panel.imageinfo[0].extmetadata.Medium = { value: 'oil on wood panel' };
+    expect(normalizeCommonsFile(panel)).toBeNull();
+
+    const onPaper = commonsFile();
+    onPaper.title = 'File:Abstract acrylic on paper 04.jpg';
+    expect(normalizeCommonsFile(onPaper)).toBeNull(); // title gives the game away
+
+    const canvas = commonsFile();
+    canvas.imageinfo[0].extmetadata.Medium = { value: 'oil on canvas' };
+    expect(normalizeCommonsFile(canvas)).not.toBeNull();
+
+    // no Medium metadata → the canvas-biased query terms carry the signal
+    expect(normalizeCommonsFile(commonsFile())).not.toBeNull();
   });
 
   it('rejects unusable licenses, SVGs, tiny images, and broken records', () => {
