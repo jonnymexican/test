@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#060a14" />
-    <meta name="description" content="Mission Control — one screen for the fleet: weather at the pad, recent tasks, the daily puzzle, the DJ vault, and a sky that's never the same twice." />
+    <meta name="description" content="Mission Control — one screen for the fleet: today's quote, weather at the pad, the gallery walls, recent tasks, the daily puzzle, the DJ vault, and a sky that's never the same twice." />
     <title>Mission Control — Jon's Apps</title>
     <style>
       * { box-sizing: border-box; }
@@ -92,6 +92,24 @@
       .big { margin: 0 0 0.35rem; font-size: 1.5rem; font-weight: 700; font-family: Consolas, 'Courier New', monospace; color: #fff; }
       .detail { margin: 0 0 0.7rem; font-size: 0.9rem; color: rgba(232, 230, 240, 0.72); }
       .detail b { color: #e8e6f0; }
+      .quote-big {
+        margin: 0 0 0.5rem;
+        font-size: 1.25rem;
+        line-height: 1.45;
+        font-style: italic;
+        font-family: Georgia, 'Times New Roman', serif;
+        color: #f2ecff;
+      }
+      .thumbs { display: flex; gap: 0.4rem; margin: 0 0 0.65rem; }
+      .thumbs img {
+        flex: 1 1 0;
+        min-width: 0;
+        height: 4.6rem;
+        object-fit: cover;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.06);
+      }
       .go { display: inline-block; margin-top: 0.15rem; font-size: 0.88rem; font-weight: 600; color: #8ab4ff; text-decoration: none; }
       .go:hover { text-decoration: underline; }
       .led { width: 9px; height: 9px; border-radius: 50%; flex: none; background: #6b7280; }
@@ -170,6 +188,13 @@
       <p class="statusline"><span class="led led-wait" id="led-fleet"></span> <span id="fleet-text">Booting instruments…</span></p>
 
       <div class="grid">
+        <section class="card card-wide">
+          <h2><span class="led led-wait" id="led-quote"></span> ✨ Quote of the day</h2>
+          <p class="quote-big" id="quote-big">…</p>
+          <p class="detail" id="quote-detail">Consulting the oracle…</p>
+          <a class="go" href="/test/">Open Get Inspired →</a>
+        </section>
+
         <section class="card">
           <h2><span class="led led-wait" id="led-weather"></span> Conditions at the pad</h2>
           <p class="big" id="weather-big">…</p>
@@ -204,6 +229,14 @@
           <p class="big" id="adhd-big">…</p>
           <p class="detail" id="adhd-detail">Checking the log…</p>
           <a class="go" href="https://jonnymexican.github.io/adhdTracker/">Open the tracker →</a>
+        </section>
+
+        <section class="card">
+          <h2><span class="led led-wait" id="led-gallery"></span> 🎨 The Gallery</h2>
+          <p class="big" id="gallery-big">…</p>
+          <div class="thumbs" id="gallery-thumbs"></div>
+          <p class="detail" id="gallery-detail">Walking the walls…</p>
+          <a class="go" href="/test/gallery/">Step inside the gallery →</a>
         </section>
 
         <section class="card">

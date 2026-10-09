@@ -2,8 +2,20 @@ import { describe, it, expect } from 'vitest';
 import { quoteOfDay } from './dailyQuote';
 import quotes from './quotes';
 import jungQuotes from './jungQuotes';
+import {
+  quotes as sharedQuotes,
+  jungQuotes as sharedJung,
+} from '../public/quote-pool.js';
 
 const ALL_QUOTES = [...quotes, ...jungQuotes];
+
+describe('shared quote pool (Mission Control shows the same pick)', () => {
+  it('the app re-exports the public pool the console imports', () => {
+    expect(quotes).toBe(sharedQuotes);
+    expect(jungQuotes).toBe(sharedJung);
+    expect(ALL_QUOTES).toEqual([...sharedQuotes, ...sharedJung]);
+  });
+});
 
 describe('quoteOfDay', () => {
   it('returns a quote from the combined pool', () => {

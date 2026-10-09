@@ -1,10 +1,13 @@
 /**
- * Mission Control instruments: clock, weather at the pad, recent tasks,
- * ambient drift, DJ Vault status, the Daily Puzzle League, live
- * FriendCredit™ bureau standings and the adhdTracker streak.
+ * Mission Control instruments: clock, today's quote, weather at the pad,
+ * recent tasks, ambient drift, DJ Vault status, the Gallery walls,
+ * the Daily Puzzle League, live FriendCredit™ bureau standings and the
+ * adhdTracker streak.
  */
 import { pickThrowback, prettyName, formatDate, yearsAgoText, isAudioName } from '../djmixes/throwback.js';
-import { scoreFriends, computeAdhdStats, mergeById, todayStr } from './summaries.js';
+import { scoreFriends, computeAdhdStats, mergeById, todayStr, galleryBrief } from './summaries.js';
+import { quoteOfDay } from '../quote-pool.js';
+import { collectArtwork } from '../gallery/gallery.js';
 import { createJoinUi } from './joinui.js';
 import { joinCodeFromLocation } from './vault.js';
 
@@ -73,6 +76,26 @@ import { joinCodeFromLocation } from './vault.js';
         then(localLists, null, 'vault unreachable — showing this device');
       });
   }
+
+  // ---------------- Quote of the day (Get Inspired, same pick worldwide) ----------------
+  (function quoteCard() {
+    var led = document.getElementById('led-quote');
+    var big = document.getElementById('quote-big');
+    var detail = document.getElementById('quote-detail');
+    try {
+      big.textContent = quoteOfDay(new Date());
+      var favs = readJSON('get-inspired:favorites');
+      var n = Array.isArray(favs) ? favs.length : 0;
+      detail.innerHTML =
+        (n ? '♥ <b>' + n + '</b> favorite' + (n === 1 ? '' : 's') + ' saved on this device · ' : '') +
+        'one a day, the same for the whole world.';
+      led.className = 'led led-green';
+    } catch (e) {
+      big.textContent = '—';
+      detail.textContent = 'The quote engine is offline.';
+      led.className = 'led';
+    }
+  })();
 
   // ---------------- Weather at the pad ----------------
   var WMO = {
@@ -307,6 +330,58 @@ import { joinCodeFromLocation } from './vault.js';
       document.getElementById('led-vault').className = 'led';
       document.getElementById('vault-big').textContent = 'offline';
       document.getElementById('vault-detail').textContent = 'Could not reach the archive (' + err.message + ').';
+    });
+
+  // ---------------- The Gallery (live from the art archive) ----------------
+  var GALLERY_API = 'https://api.github.com/repos/jonnymexican/art/releases?per_page=100';
+
+  function galleryRender(shows, note) {
+    var led = document.getElementById('led-gallery');
+    var big = document.getElementById('gallery-big');
+    var detail = document.getElementById('gallery-detail');
+    var thumbs = document.getElementById('gallery-thumbs');
+    var brief = galleryBrief(shows);
+    thumbs.innerHTML = '';
+    if (!brief.works) {
+      big.textContent = 'the walls are bare';
+      detail.textContent = 'No works hanging yet — open the gallery to start the first show.';
+      led.className = 'led led-amber';
+      return;
+    }
+    big.textContent =
+      brief.works + ' work' + (brief.works === 1 ? '' : 's') +
+      ' · ' + brief.shows + ' show' + (brief.shows === 1 ? '' : 's');
+    if (brief.latest) {
+      detail.innerHTML =
+        'Newest show: <b>' + esc(brief.latest.title) + '</b> · ' + brief.latest.count + ' piece' +
+        (brief.latest.count === 1 ? '' : 's') + (note ? ' · ' + note : '');
+      brief.latest.thumbs.forEach(function (im) {
+        var img = document.createElement('img');
+        img.loading = 'lazy';
+        img.src = im.src;
+        img.alt = im.caption;
+        img.title = im.caption;
+        thumbs.appendChild(img);
+      });
+    } else if (note) {
+      detail.textContent = note;
+    }
+    led.className = 'led led-green';
+  }
+
+  fetch(GALLERY_API, { cache: 'reload' })
+    .then(function (r) {
+      if (!r.ok) throw new Error('GitHub API said ' + r.status);
+      return r.json();
+    })
+    .then(function (releases) {
+      galleryRender(collectArtwork(releases), '');
+    })
+    .catch(function (err) {
+      document.getElementById('led-gallery').className = 'led';
+      document.getElementById('gallery-big').textContent = 'offline';
+      document.getElementById('gallery-detail').textContent =
+        'Could not reach the archive (' + err.message + ').';
     });
 
   // ---------------- Daily Puzzle League (same origin, shared localStorage) ----------------

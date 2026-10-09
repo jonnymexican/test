@@ -110,6 +110,34 @@ export function computeAdhdStats(tasks, referenceDay = todayStr()) {
   };
 }
 
+// ---------------- Gallery brief (headline for the console card) ----------------
+
+/**
+ * Turn the Gallery's collectArtwork() output into a Mission Control
+ * headline: totals across every show, plus the newest show with a few
+ * thumbnails. Releases arrive newest-first from the GitHub API, so the
+ * first show with images is the one to feature. Shows with no images
+ * (never produced by collectArtwork) are skipped rather than featured.
+ */
+export function galleryBrief(shows, thumbCount = 4) {
+  const list = Array.isArray(shows) ? shows : [];
+  const works = list.reduce((n, s) => n + ((s.images && s.images.length) || 0), 0);
+  const latest = list.find((s) => s.images && s.images.length) || null;
+  return {
+    works,
+    shows: list.length,
+    latest: latest
+      ? {
+          title: latest.title,
+          count: latest.images.length,
+          thumbs: latest.images
+            .slice(0, thumbCount)
+            .map((im) => ({ src: im.src, caption: im.caption })),
+        }
+      : null,
+  };
+}
+
 // ---------------- vault merging (mirrors both apps' sync rules) ----------------
 
 const itemTime = (x) => Number(x.updatedAt ?? x.createdAt ?? 0);

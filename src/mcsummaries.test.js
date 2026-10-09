@@ -6,6 +6,7 @@ import {
   mergeById,
   todayStr,
   addDays,
+  galleryBrief,
 } from '../public/mc/summaries.js';
 
 describe('FriendCredit scoring (mirrors brocredit ledgerLogic)', () => {
@@ -136,5 +137,37 @@ describe('date helpers', () => {
   it('walks days across month boundaries', () => {
     expect(addDays('2026-10-01', -1)).toBe('2026-09-30');
     expect(addDays('2026-12-31', 1)).toBe('2027-01-01');
+  });
+});
+
+describe('gallery brief (Mission Control card)', () => {
+  const img = (n) => ({ src: 'u/' + n + '.jpg', caption: 'cap ' + n });
+
+  it('totals works and features the newest show with a few thumbs', () => {
+    const shows = [
+      { title: 'Newest', images: [img('a'), img('b'), img('c'), img('d'), img('e')] },
+      { title: 'Older', images: [img('f')] },
+    ];
+    const brief = galleryBrief(shows);
+    expect(brief.works).toBe(6);
+    expect(brief.shows).toBe(2);
+    expect(brief.latest.title).toBe('Newest');
+    expect(brief.latest.count).toBe(5);
+    expect(brief.latest.thumbs).toHaveLength(4); // capped, not the whole show
+    expect(brief.latest.thumbs[0]).toEqual({ src: 'u/a.jpg', caption: 'cap a' });
+  });
+
+  it('skips an imageless show instead of featuring it', () => {
+    const brief = galleryBrief([
+      { title: 'Empty', images: [] },
+      { title: 'Hung', images: [img('x')] },
+    ]);
+    expect(brief.latest.title).toBe('Hung');
+    expect(brief.works).toBe(1);
+  });
+
+  it('reports an empty wall without crashing', () => {
+    expect(galleryBrief([])).toEqual({ works: 0, shows: 0, latest: null });
+    expect(galleryBrief(undefined).works).toBe(0);
   });
 });
