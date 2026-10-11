@@ -1,2 +1,3 @@
 .wrangler/
 secrets.admin
+.dev.vars

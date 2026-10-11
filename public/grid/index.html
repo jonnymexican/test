@@ -61,6 +61,14 @@
       .task small { color: rgba(230, 240, 232, 0.55); }
       .bar { height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.09); margin-top: 0.35rem; overflow: hidden; }
       .bar i { display: block; height: 100%; background: linear-gradient(90deg, #6ee7b7, #60a5fa); }
+      .hunt { padding: 0.6rem 0.7rem 0.7rem; border: 1px solid rgba(255, 255, 255, 0.09); border-radius: 12px; margin-bottom: 0.6rem; }
+      .hunt h3 { margin: 0 0 0.2rem; font-size: 0.95rem; color: #cfe8d8; }
+      .stretch { margin: 0.5rem 0 0.15rem; font-family: Consolas, 'Courier New', monospace; font-size: 1.06rem; color: #fff; word-break: break-all; }
+      .stretch b { color: #ffd18a; }
+      .verdict { margin: 0.4rem 0 0; font-family: Consolas, monospace; font-size: 0.8rem; min-height: 1.1em; }
+      .verdict.ok { color: #6ee7b7; }
+      .verdict.bad { color: #ffb3a0; }
+      .witness { margin: 0.35rem 0 0; font-size: 0.78rem; color: rgba(230, 240, 232, 0.5); }
       footer { margin-top: 1.8rem; font-size: 0.78rem; color: rgba(230, 240, 232, 0.4); text-align: center; }
       a { color: #8ab4ff; }
       .safe { font-size: 0.82rem; color: rgba(230, 240, 232, 0.6); }
@@ -117,6 +125,15 @@
           <div id="tasks"><p class="detail">Loading the cause board…</p></div>
         </section>
 
+        <section class="card card-wide">
+          <h2>What the fleet has found</h2>
+          <p class="detail safe" style="margin-top: -0.2rem">
+            Findings are stitched from chunks that <b>two nodes already agreed on</b> — and every
+            one re-checks from scratch in your own browser, so trusting the fleet is optional.
+          </p>
+          <div id="findings" style="margin-top: 0.7rem"><p class="detail">Looking for a hunt…</p></div>
+        </section>
+
         <section class="card">
           <h2>Fleet stats</h2>
           <div class="kpis">
@@ -147,12 +164,13 @@
     </main>
 
     <script type="module">
-      import { totalWorked } from './grid-core.js';
+      import { totalWorked, findStretches, decodeResult, verifyPrimeGap, seriesByIndex } from './grid-core.js';
 
       var DEFAULT_API = 'https://bureau-vault.jonnymexican.workers.dev';
       var STORE_KEY = 'fleetgrid:node';
       var engine = null;
       var sessionCredits = 0;
+      var verified = {};
 
       var $ = function (id) { return document.getElementById(id); };
 
@@ -281,9 +299,247 @@
           if (!(leadRes.leaders || []).length) {
             tb.innerHTML = '<tr><td class="detail">No crunchers yet — first node takes the crown.</td></tr>';
           }
+          refreshFindings(api, tasks, leadRes.leaders || []);
         } catch (e) {
           $('tasks').innerHTML = '<p class="detail">Could not reach the grid brain — retrying soon.</p>';
         }
+      }
+
+      // --- the hunt: what the fleet has found, and proof you can check yourself ---
+      function fmt(n) { return Number(n).toLocaleString(); }
+
+      var HUNT_API = '';
+      var huntCache = {}; // block id → settled results, refetched only when it moves
+      var rolling = {};
+
+      /** 'The dry stretches (part 3)' → 'The dry stretches' */
+      function seriesTitle(title) { return String(title || '').replace(/\s*\(part \d+\)$/, ''); }
+
+      /**
+       * One block's settled results, plus who witnessed them. Cached against the
+       * block's settled count, so a long map costs KV reads only when the fleet
+       * actually advances — the whole point of a rolling frontier.
+       */
+      async function readPart(api, part) {
+        var hit = huntCache[part.id];
+        if (hit && hit.settled === part.chunksSettled) return hit;
+        var res = await fetch(api + '/fg/task/' + encodeURIComponent(part.id) + '/results?limit=1000');
+        if (!res.ok) throw new Error('results ' + res.status);
+        var data = await res.json();
+        var byIndex = {};
+        var by = {};
+        (data.results || []).forEach(function (r) {
+          if (!r.resultB64) return;
+          try {
+            byIndex[r.chunkIndex] = decodeResult(r.resultB64);
+            by[r.chunkIndex] = r.by || [];
+          } catch (e) { /* not a result this page understands */ }
+        });
+        huntCache[part.id] = { settled: part.chunksSettled, byIndex: byIndex, by: by, mismatches: data.mismatches || 0 };
+        return huntCache[part.id];
+      }
+
+      /** Ask the Worker to roll a finished block into the next territory. */
+      function rollFrontier(head) {
+        if (rolling[head.id] || !HUNT_API) return;
+        rolling[head.id] = 1;
+        // No route (or no network) is not an error the visitor needs: the cron
+        // trigger rolls the frontier anyway, just later.
+        fetch(HUNT_API + '/fg/hunt/advance', { method: 'POST' }).catch(function () {});
+      }
+
+      // Receipts this visitor produced, keyed by task and stretch. The board
+      // re-polls every 15s and rebuilds its cards, so without this a result
+      // would vanish out from under whoever just ran it.
+
+      async function refreshFindings(api, tasks, leaders) {
+        var box = $('findings');
+        var hunts = (tasks || []).filter(function (t) { return t.kind === 'primegap'; });
+        if (!hunts.length) {
+          box.innerHTML = '<p class="detail">No hunt published yet — the fleet is still charting its first frontier.</p>';
+          return;
+        }
+        var names = {};
+        (leaders || []).forEach(function (l) { names[l.nodeId] = l.name; });
+        box.textContent = '';
+        HUNT_API = api;
+
+        // One card per series: a rolling frontier is a single map, not a pile of
+        // finished blocks.
+        var groups = [];
+        var byKey = {};
+        hunts.forEach(function (t) {
+          var key = t.series || t.id;
+          if (!byKey[key]) {
+            byKey[key] = { key: key, base: t.from || 0, title: seriesTitle(t.title), parts: [] };
+            groups.push(byKey[key]);
+          }
+          byKey[key].parts.push(t);
+        });
+
+        for (var g = 0; g < groups.length; g++) {
+          var grp = groups[g];
+          grp.parts.sort(function (a, b) { return (a.from || 0) - (b.from || 0); });
+          var results = [];
+          var witnesses = [];
+          var settledChunks = 0;
+          var mismatches = 0;
+          var reachable = true;
+          for (var p = 0; p < grp.parts.length; p++) {
+            var part = grp.parts[p];
+            settledChunks += part.chunksSettled || 0;
+            if (!part.chunksSettled) { results.push({ from: part.from || 0, results: {} }); continue; }
+            try {
+              var got = await readPart(api, part);
+              mismatches += got.mismatches;
+              results.push({ from: part.from || 0, results: got.byIndex });
+              witnesses.push({ from: part.from || 0, results: got.by });
+            } catch (e) {
+              reachable = false;
+              results.push({ from: part.from || 0, results: {} });
+            }
+          }
+          if (!reachable) {
+            var lost = document.createElement('p');
+            lost.className = 'detail';
+            lost.textContent = grp.title + ': could not read the results just now — retrying on the next poll.';
+            box.appendChild(lost);
+            continue;
+          }
+          var size = grp.parts[0].chunkSize || 0;
+          box.appendChild(huntCard(
+            grp,
+            findStretches(seriesByIndex(grp.base, size, results)),
+            seriesByIndex(grp.base, size, witnesses),
+            names,
+            { settled: settledChunks, mismatches: mismatches, territory: settledChunks * size }
+          ));
+        }
+      }
+
+      function huntCard(grp, stretches, by, names, info) {
+        var head = grp.parts[grp.parts.length - 1];
+        var card = document.createElement('div');
+        card.className = 'hunt';
+
+        var h3 = document.createElement('h3');
+        h3.textContent = grp.title;
+        card.appendChild(h3);
+
+        var meta = document.createElement('div');
+        meta.className = 'detail safe';
+        meta.textContent = 'part ' + grp.parts.length + (head.status === 'live' ? '' : ' (paused)') + ' · ' +
+          head.chunksSettled + '/' + head.chunkCount + ' chunks in the current block · ' +
+          fmt(info.territory) + ' numbers surveyed' +
+          (info.mismatches ? ' · ' + info.mismatches + ' chunk' + (info.mismatches === 1 ? '' : 's') + ' requeued after a disagreement' : '');
+        card.appendChild(meta);
+
+        if (head.status === 'live' && head.chunksSettled >= head.chunkCount) {
+          var rollNote = document.createElement('p');
+          rollNote.className = 'witness';
+          rollNote.textContent = 'This block is fully surveyed — the next territory rolls over on its own.';
+          card.appendChild(rollNote);
+          rollFrontier(head);
+        }
+
+        var best = null;
+        for (var i = 0; i < stretches.length; i++) {
+          if (stretches[i].gap > 0) { best = stretches[i]; break; }
+        }
+        if (!best) {
+          var none = document.createElement('p');
+          none.className = 'detail';
+          none.textContent = 'No stretch mapped yet — the first settled chunks will open the map.';
+          card.appendChild(none);
+          return card;
+        }
+
+        var s = document.createElement('p');
+        s.className = 'stretch';
+        s.textContent = fmt(best.from) + ' → ' + fmt(best.to);
+        card.appendChild(s);
+
+        var desc = document.createElement('p');
+        desc.className = 'detail safe';
+        var gapB = document.createElement('b');
+        gapB.textContent = fmt(best.gap);
+        desc.appendChild(gapB);
+        desc.appendChild(document.createTextNode(
+          ' consecutive numbers with no prime between them · ' +
+          (best.across
+            ? 'stitched across the border of chunks ' + best.chunkIndex + ' and ' + (best.chunkIndex + 1)
+            : 'entirely inside chunk ' + (best.chunkIndex + 1))
+        ));
+        card.appendChild(desc);
+
+        var ids = best.across
+          ? (by[best.chunkIndex - 1] || []).concat(by[best.chunkIndex] || [])
+          : (by[best.chunkIndex] || []);
+        var seen = {};
+        var who = ids.filter(function (id) {
+          if (seen[id]) return false;
+          seen[id] = 1;
+          return true;
+        }).map(function (id) { return names[id] || id; }).join(' + ');
+        if (who) {
+          var witness = document.createElement('p');
+          witness.className = 'witness';
+          witness.textContent = 'witnessed by ' + who;
+          card.appendChild(witness);
+        }
+
+        var key = grp.key + ':' + best.from + ':' + best.to;
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'ghost';
+        btn.textContent = '🔍 Verify this find in my browser';
+        var verdict = document.createElement('p');
+        verdict.className = 'verdict';
+        if (verified[key]) {
+          verdict.className = 'verdict ' + verified[key].cls;
+          verdict.textContent = verified[key].text;
+        }
+        btn.addEventListener('click', function () {
+          verdict.className = 'verdict';
+          verdict.textContent = 'Re-checking every number in the stretch…';
+          setTimeout(function () {
+            var v = verifyPrimeGap(best.from, best.to);
+            var cls = v.ok ? 'ok' : 'bad';
+            var text = v.ok
+              ? '✓ ' + fmt(best.from) + ' and ' + fmt(best.to) + ' are both prime and all ' + fmt(v.checked) +
+                ' numbers between them are composite — checked here in ' + v.ms + ' ms, trusting nobody.'
+              : '✗ rejected: ' + v.reason;
+            verified[key] = { cls: cls, text: text };
+            verdict.className = 'verdict ' + cls;
+            verdict.textContent = text;
+          }, 0);
+        });
+        card.appendChild(btn);
+        card.appendChild(verdict);
+
+        var rest = stretches.filter(function (x) { return x.gap > 0 && x !== best; }).slice(0, 5);
+        if (rest.length) {
+          var caption = document.createElement('p');
+          caption.className = 'witness';
+          caption.textContent = 'Next-deepest stretches on the map';
+          card.appendChild(caption);
+          var tbl = document.createElement('table');
+          tbl.className = 'ledger';
+          var tb = document.createElement('tbody');
+          rest.forEach(function (x) {
+            var tr = document.createElement('tr');
+            var td1 = document.createElement('td');
+            td1.textContent = fmt(x.from) + ' → ' + fmt(x.to);
+            var td2 = document.createElement('td');
+            td2.textContent = x.gap + (x.across ? ' · stitched' : '');
+            tr.appendChild(td1);
+            tr.appendChild(td2);
+            tb.appendChild(tr);
+          });
+          tbl.appendChild(tb);
+          card.appendChild(tbl);
+        }
+        return card;
       }
 
       // --- join flow ---

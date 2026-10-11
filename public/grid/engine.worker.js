@@ -66,6 +66,17 @@ async function loop(mySeq) {
       var task = await api('/fg/task/' + encodeURIComponent(claim.taskId));
       if (mySeq !== seq) return;
 
+      // A page left open across a fleet publish can meet a kind it was never
+      // built to run. Stop cleanly rather than hammer the vault with it — the
+      // claim goes stale and a node running the current page picks it up.
+      var crunch = TASK_KINDS[task.kind];
+      if (typeof crunch !== 'function') {
+        running = false;
+        live.busy = false;
+        post('status', { note: 'This page predates the "' + task.id + '" task — reload to join it.' });
+        return;
+      }
+
       // 3) crunch
       taskId = claim.taskId;
       chunkIndex = claim.chunkIndex;
@@ -77,7 +88,7 @@ async function loop(mySeq) {
         chunkIndex,
       });
       var t0 = performance.now();
-      var result = TASK_KINDS[task.kind]({ index: chunkIndex, start: chunkStart, len: task.chunkSize }, task.input);
+      var result = crunch({ index: chunkIndex, start: chunkStart, len: task.chunkSize }, task.input);
       var ms = Math.round(performance.now() - t0);
       if (mySeq !== seq) return;
 

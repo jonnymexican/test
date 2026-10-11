@@ -34,6 +34,12 @@
  *   GET    /fg/admin/nodes   → all nodes                             (admin)
  *   DELETE /fg/admin/nodes/<ID>                                    (admin)
  *
+ * Hunt series (a rolling frontier): a task may opt in with `series`, and then
+ * input[0] is where its territory starts. When such a task is fully settled,
+ * the next block — same kind, geometry and description, starting where the last
+ * one ended — is published automatically, by the cron trigger below or on
+ * demand via POST /fg/hunt/advance.
+ *
  * Gallery uploader proxy (browsers can't reach uploads.github.com — CORS):
  *   POST /art/init   { tag } → { releaseId, existing }               (admin)
  *   POST /art/asset/<releaseId>/<name>   raw image bytes → 201       (admin)
@@ -53,6 +59,7 @@ const FG_NODE = 'fg:v1:node:'; // FleetGrid donor nodes (id → { keyHash, credi
 const MAX_BODY_BYTES = 512 * 1024; // 512 KB is plenty for a friend ledger
 const CODE_RE = /^[A-Za-z0-9-]{4,40}$/;
 const FG_NODE_RE = /^n-[0-9a-f]{10}$/;
+const FG_SERIES_RE = /^[a-z0-9][a-z0-9-]{0,30}$/; // a task family whose territory tiles forward
 const FG_CLAIM_TTL_MS = 10 * 60 * 1000; // a stalled claim is stealable after this
 const FG_RESULT_B64_MAX = 64 * 1024; // results above this are settled by hash only;
 
@@ -173,6 +180,58 @@ async function fgCredit(env, nodeId, ms) {
   return FG_CREDITS_PER_CHUNK;
 }
 
+/** 'The dry stretches (part 2)' → 'The dry stretches' */
+function fgStripPart(title) {
+  return String(title || '').replace(/\s*\(part \d+\)$/, '');
+}
+
+/**
+ * Roll every finished hunt series into its next territory.
+ *
+ * The successor is derived entirely from the predecessor — same kind, same
+ * geometry, same description — and starts where the last block ended, so the
+ * map can only ever grow forward. Returns the blocks published by this call
+ * (usually none, which is why it is cheap to call repeatedly).
+ */
+async function fgAdvance(env, nowIso) {
+  const tasks = await fgListTasks(env);
+  const series = new Map();
+  for (const t of tasks) {
+    if (!t.series) continue;
+    if (!series.has(t.series)) series.set(t.series, []);
+    series.get(t.series).push(t);
+  }
+  const published = [];
+  for (const [name, parts] of series) {
+    parts.sort((a, b) => ((a.input && a.input[0]) || 0) - ((b.input && b.input[0]) || 0));
+    const head = parts[parts.length - 1];
+    if (head.status !== 'live') continue;
+    if ((head.chunksSettled || 0) < head.chunkCount) continue; // still being surveyed
+    const start = ((head.input && head.input[0]) || 0) + head.chunkSize * head.chunkCount;
+    const id = name + '-' + start;
+    if (!FG_TASK_ID_RE.test(id)) continue; // never invent an id the routes would reject
+    if (await fgGetTask(env, id)) continue; // already rolled — a retry, or the cron beat us
+    const next = {
+      id,
+      title: (fgStripPart(head.title) + ' (part ' + (parts.length + 1) + ')').slice(0, 80),
+      kind: head.kind,
+      description: head.description,
+      chunkSize: head.chunkSize,
+      chunkCount: head.chunkCount,
+      input: [start].concat((head.input || []).slice(1)),
+      code: head.code || '',
+      status: 'live',
+      chunksSettled: 0,
+      series: name,
+      createdAt: nowIso,
+    };
+    await env.VAULT.put(FG_TASK + id, JSON.stringify(next));
+    await env.VAULT.put(FG_CLAIMS + id, JSON.stringify({ chunks: {} }));
+    published.push({ series: name, id, from: start, part: parts.length + 1 });
+  }
+  return published;
+}
+
 async function fgRoutes(request, env, path, method) {
   const url = new URL(request.url);
   const now = Date.now();
@@ -211,6 +270,8 @@ async function fgRoutes(request, env, path, method) {
         chunkSize: t.chunkSize,
         chunkCount: t.chunkCount,
         chunksSettled: t.chunksSettled || 0,
+        from: (t.input && t.input[0]) || 0, // where this block's territory starts
+        series: t.series || null,
         createdAt: t.createdAt,
       })),
     });
@@ -274,6 +335,14 @@ async function fgRoutes(request, env, path, method) {
         ms: n.ms || 0,
       })),
     });
+  }
+
+  if (path === '/fg/hunt/advance' && method === 'POST') {
+    // Deliberately open and bodyless. The credential is the condition — a head
+    // that is fully settled — and the successor is derived from the
+    // predecessor rather than from anything the caller sends, so the worst a
+    // stranger can do is publish the block that was due anyway.
+    return json({ ok: true, advanced: await fgAdvance(env, new Date().toISOString()) });
   }
 
   // --- node-auth routes ---
@@ -407,6 +476,11 @@ async function fgRoutes(request, env, path, method) {
         .slice(0, 40) || 'task';
     if (!FG_TASK_ID_RE.test(id)) return json({ error: 'bad_id' }, 400);
     const existing = await fgGetTask(env, id);
+    // Publishing without a series keeps whatever the task already had, so a
+    // plain republish never detaches a hunt from its map.
+    const series = body.series === undefined
+      ? (existing && existing.series) || null
+      : FG_SERIES_RE.test(String(body.series)) ? String(body.series) : null;
     const task = {
       id,
       title,
@@ -416,6 +490,7 @@ async function fgRoutes(request, env, path, method) {
       chunkCount,
       input,
       code,
+      series,
       status: body.status === 'paused' ? 'paused' : 'live',
       chunksSettled: existing && existing.chunkCount === chunkCount ? existing.chunksSettled || 0 : 0,
       createdAt: existing?.createdAt || new Date().toISOString(),
@@ -477,6 +552,13 @@ function validateState(state) {
 }
 
 export default {
+  // The frontier keeper: a finished territory rolls into the next block even
+  // when nobody has the grid open. See [triggers] in wrangler.toml.
+  async scheduled(event, env, ctx) {
+    const advanced = await fgAdvance(env, new Date().toISOString());
+    console.log(advanced.length ? 'rolled the frontier: ' + advanced.map((a) => a.id).join(', ') : 'frontier unchanged');
+  },
+
   async fetch(request, env) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, '') || '/';

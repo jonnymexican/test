@@ -82,12 +82,65 @@ PUT  /fg/admin/tasks | PATCH/DELETE /fg/admin/tasks/<ID>    (x-admin-key)
 GET  /fg/admin/nodes | DELETE /fg/admin/nodes/<ID>          (x-admin-key)
 ```
 
-Publish the demo tasks (Collatz survey + the first-million prime census —
-a known-answer integrity yardstick):
+Publish the fleet's tasks — the Collatz survey, the first-million prime census
+(a known-answer integrity yardstick), and **the hunt**: a prime-gap survey of
+[1,000,000,000, 1,005,000,000):
 
 ```
 ADMIN_KEY=$(<secrets.admin) node scripts/publish-fg-task.mjs https://bureau-vault.<you>.workers.dev
 ```
+
+Republishing is safe: when a task's chunk geometry is unchanged the Worker keeps
+its existing progress instead of resetting it.
+
+### The hunt, and why its findings can be trusted
+
+`primegap` chunks report their prime count and the deepest run of composites
+with both ends inside the chunk. Gaps that straddle a chunk border are stitched
+from the neighbouring chunks' `first`/`last` primes, so the fleet's record only
+ever exists where two chunks actually agreed — and never spans a chunk nobody
+has confirmed. The grid page folds this straight out of
+`GET /fg/task/<ID>/results`, so the hunt costs **no extra KV writes** and no new
+server-side state to keep consistent.
+
+A stretch is just two primes and the claim that everything between them is
+composite, so the page re-checks it in the visitor's own browser in a few
+milliseconds. A reader who trusts nobody can still confirm the fleet's best
+finding.
+
+### A rolling frontier
+
+One block of territory is a survey; a **series** makes it a map. A task opts in
+with `series`, and then `input[0]` is where its territory starts. When such a
+block is **fully settled**, the Worker publishes the next one — same kind, same
+geometry, same description — starting exactly where the last block ended:
+
+```
+POST /fg/hunt/advance   → { ok, advanced: [{ series, id, from, part }] }   (open)
+```
+
+The route is deliberately open and bodyless: the credential is the condition (a
+finished head), and the successor is derived from the predecessor rather than
+from anything a caller sends, so the worst a stranger can do is publish the
+block that was due anyway. Calling it again is a no-op while the new head is
+unfinished.
+
+`wrangler.toml` also carries a **cron trigger** (`17 */6 * * *`), so the frontier
+rolls even when nobody has the grid open — the Worker's first scheduled job.
+Both paths run the same `fgAdvance`.
+
+The grid page folds a whole series into one map: each block's local chunk index
+is lifted into a global index, so a stretch can be stitched across a block
+border, and a block's results are only refetched when its settled count moves.
+
+Shipping this needs `npx wrangler deploy` (the cron trigger goes with it), and
+the page itself has to be published before nodes can run the new task kind.
+
+**Order matters on the way in:** the admin route builds each task from a fixed
+field list, so a task published before series support existed keeps its old
+shape — `series` is dropped and its territory never rolls. Deploy first, then
+run `scripts/publish-fg-task.mjs` again (safe to repeat; unfinished progress is
+kept) to stamp the series onto a task that predates it.
 
 **Free-tier budget:** each settled chunk costs ~4 KV writes (claims + task +
 two node records), so the 1k writes/day cap means **~250 chunk settles/day** —

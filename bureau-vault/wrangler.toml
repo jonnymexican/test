@@ -5,3 +5,10 @@ compatibility_date = "2026-01-15"
 [[kv_namespaces]]
 binding = "VAULT"
 id = "f76a20297ccb4adca468dea47c96e4e5"
+
+# The frontier keeper: roll a finished hunt series into its next territory.
+# Every 6 hours at :17 UTC — often enough to keep the map growing, rare enough
+# to stay far inside the free tier. The same job can be run on demand with
+# POST /fg/hunt/advance.
+[triggers]
+crons = ["17 */6 * * *"]
